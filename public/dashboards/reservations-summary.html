@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reservations Summary</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f9fafb; color: #111827; padding: 24px; }
+    h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; color: #374151; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; }
+    .chart-wrap { position: relative; height: 260px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th { text-align: left; padding: 8px 12px; background: #f3f4f6; color: #6b7280; font-weight: 500; }
+    td { padding: 8px 12px; border-top: 1px solid #f3f4f6; }
+    tr:hover td { background: #f9fafb; }
+    .badge { display: inline-block; font-size: 0.75rem; padding: 2px 8px; border-radius: 9999px; font-weight: 500; }
+    .badge-confirmed { background: #d1fae5; color: #065f46; }
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    .badge-cancelled { background: #fee2e2; color: #991b1b; }
+    .note { margin-top: 16px; font-size: 0.75rem; color: #9ca3af; text-align: right; }
+  </style>
+</head>
+<body>
+
+<!-- All data embedded as static JSON — no API calls, no PII -->
+<script>
+  const SNAPSHOT_DATE = '2025-04-30';
+  const DESTINATIONS = [
+    { name: 'Patagonie', confirmed: 42, pending: 8, cancelled: 3 },
+    { name: 'Islande',   confirmed: 38, pending: 12, cancelled: 5 },
+    { name: 'Mongolie',  confirmed: 27, pending: 6, cancelled: 2 },
+    { name: 'Namibie',   confirmed: 19, pending: 4, cancelled: 1 },
+    { name: 'Laponie',   confirmed: 34, pending: 9, cancelled: 4 },
+    { name: 'Éthiopie',  confirmed: 15, pending: 3, cancelled: 2 },
+  ];
+  const MONTHLY = [
+    { month: 'Nov 24', count: 47 },
+    { month: 'Dec 24', count: 61 },
+    { month: 'Jan 25', count: 38 },
+    { month: 'Feb 25', count: 55 },
+    { month: 'Mar 25', count: 72 },
+    { month: 'Apr 25', count: 64 },
+  ];
+</script>
+
+<div class="grid">
+  <div class="card">
+    <h2>Reservations by Month</h2>
+    <div class="chart-wrap">
+      <canvas id="monthlyChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Top Destinations</h2>
+    <div class="chart-wrap">
+      <canvas id="destChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:24px">
+  <h2>Status Breakdown by Destination</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Destination</th>
+        <th>Confirmed</th>
+        <th>Pending</th>
+        <th>Cancelled</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="d in DESTINATIONS" id="tableBody"></tr>
+    </tbody>
+  </table>
+  <p class="note">Static snapshot — data as of <span id="snapDate"></span></p>
+</div>
+
+<script>
+  document.getElementById('snapDate').textContent = SNAPSHOT_DATE;
+
+  const tbody = document.getElementById('tableBody').parentElement;
+  tbody.innerHTML = '';
+  for (const d of DESTINATIONS) {
+    const total = d.confirmed + d.pending + d.cancelled;
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td>${d.name}</td>
+        <td><span class="badge badge-confirmed">${d.confirmed}</span></td>
+        <td><span class="badge badge-pending">${d.pending}</span></td>
+        <td><span class="badge badge-cancelled">${d.cancelled}</span></td>
+        <td><strong>${total}</strong></td>
+      </tr>
+    `);
+  }
+
+  new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+      labels: MONTHLY.map(m => m.month),
+      datasets: [{
+        label: 'Reservations',
+        data: MONTHLY.map(m => m.count),
+        backgroundColor: '#3b82f6',
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, grid: { color: '#f3f4f6' } } }
+    }
+  });
+
+  new Chart(document.getElementById('destChart'), {
+    type: 'doughnut',
+    data: {
+      labels: DESTINATIONS.map(d => d.name),
+      datasets: [{
+        data: DESTINATIONS.map(d => d.confirmed + d.pending),
+        backgroundColor: ['#3b82f6','#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981'],
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'right' } }
+    }
+  });
+</script>
+</body>
+</html>

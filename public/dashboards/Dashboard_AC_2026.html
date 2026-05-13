@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Commercial — Odysway</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bleu:#2B4C52;--terra:#DB6644;--teal:#237C8C;--teal-light:#9CC5CC;--teal-bg:#EAF4F6;
+    --ocre:#F0B348;--vert:#2D5843;--sage:#7D9676;--saumon:#EB9A82;--beige:#EADFB1;
+    --coral-bg:#FDF0EB;--n100:#EAEDED;--n500:#767676;--white:#FFF;--bg:#F5F7F8;--red:#C0392B;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--bleu)}
+  .header{background:linear-gradient(135deg,var(--bleu) 0%,var(--teal) 60%,var(--teal-light) 100%);color:white;padding:28px 40px;display:flex;align-items:center;gap:20px}
+  .header-logo{width:44px;height:44px;background:rgba(255,255,255,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700}
+  .header h1{font-size:22px;font-weight:600;letter-spacing:-.3px}
+  .header p{opacity:.7;margin-top:2px;font-size:13px}
+  .container{max-width:1340px;margin:0 auto;padding:24px}
+
+  /* Tab switcher */
+  .tabs{display:flex;gap:8px;margin-bottom:24px}
+  .tab-btn{padding:10px 28px;border:2px solid var(--bleu);background:var(--white);color:var(--bleu);border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+  .tab-btn:hover{background:var(--teal-bg)}
+  .tab-btn.active{background:var(--bleu);color:var(--white)}
+  .year-panel{display:none}.year-panel.active{display:block}
+
+  .kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px}
+  .kpi-card{background:var(--white);border-radius:14px;padding:18px 14px;box-shadow:0 1px 4px rgba(43,76,82,.06);text-align:center;border:1px solid var(--n100);transition:transform .15s}
+  .kpi-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(43,76,82,.1)}
+  .kpi-icon{font-size:18px;margin-bottom:4px}
+  .kpi-value{font-size:26px;font-weight:700;color:var(--bleu);letter-spacing:-.5px}
+  .kpi-value.terra{color:var(--terra)}.kpi-value.teal{color:var(--teal)}.kpi-value.vert{color:var(--vert)}.kpi-value.red{color:var(--red)}
+  .kpi-label{font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.8px;margin-top:5px;font-weight:500}
+  .kpi-sub{font-size:10px;color:var(--teal-light);margin-top:2px}
+
+  .section-title{font-size:11px;font-weight:600;color:var(--n500);text-transform:uppercase;letter-spacing:1px;margin:28px 0 12px;padding-left:4px}
+  .g{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px}
+  .card{background:var(--white);border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(43,76,82,.06);border:1px solid var(--n100)}
+  .card h3{font-size:12px;font-weight:600;color:var(--bleu);margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px;padding-bottom:8px;border-bottom:2px solid var(--teal-bg)}
+  .card canvas{max-height:280px}
+  .fw{grid-column:1/-1}
+
+  .evo-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+  .evo-table th{background:var(--bleu);color:white;padding:8px 10px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+  .evo-table td{padding:8px 10px;text-align:center;border-bottom:1px solid var(--n100)}
+  .evo-table tr:nth-child(even){background:var(--teal-bg)}
+  .evo-table .total-row{background:var(--bleu);color:white;font-weight:700}
+  .evo-table .mois-cell{font-weight:600;color:var(--bleu);text-align:left}
+  .evo-table .proj-row{background:var(--coral-bg);font-style:italic;color:var(--terra)}
+  .evo-table .proj-row .mois-cell{color:var(--terra)}
+
+  .mini-table{width:100%;border-collapse:collapse;font-size:12px}
+  .mini-table th{background:var(--teal-bg);padding:8px 12px;text-align:left;font-weight:600;color:var(--bleu);border-bottom:2px solid var(--teal-light);font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+  .mini-table td{padding:8px 12px;border-bottom:1px solid var(--n100)}
+  .mini-table tr:hover{background:var(--teal-bg)}
+  .sortable th{cursor:pointer;user-select:none}.sortable th:hover{background:var(--bleu);color:white}
+  .sortable th::after{content:'⇅';opacity:.3;margin-left:4px;font-size:10px}.sortable th.sort-asc::after{content:'↑';opacity:1}.sortable th.sort-desc::after{content:'↓';opacity:1}
+  .badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600}
+  .badge-teal{background:var(--teal-bg);color:var(--teal)}
+  .bar-bg{background:var(--n100);border-radius:6px;height:9px;width:100%}
+  .bar-fill{height:9px;border-radius:6px;background:linear-gradient(90deg,var(--terra) 0%,var(--saumon) 100%)}
+
+  .forecast-summary{margin-top:12px;padding:14px 18px;background:var(--teal-bg);border-radius:10px;display:flex;gap:30px;font-size:13px;font-weight:500}
+  .forecast-summary .fs-item{display:flex;flex-direction:column;gap:2px}
+  .forecast-summary .fs-label{font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px}
+  .forecast-summary .fs-val{font-size:18px;font-weight:700;color:var(--bleu)}
+  .forecast-summary .fs-val.terra{color:var(--terra)}
+
+  .footer{text-align:center;padding:20px;color:var(--teal-light);font-size:11px}
+  .footer strong{color:var(--teal)}
+  @media(max-width:1000px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.g{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="header"><div class="header-logo">O</div><div><h1 id="headerTitle">Dashboard Commercial — 2026</h1><p>Donnees ActiveCampaign - Pipelines Prospects & Voyageurs</p></div></div>
+<div class="container">
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchYear('2026')">2026</button>
+  <button class="tab-btn" onclick="switchYear('2025')">2025</button>
+</div>
+
+<!-- ==================== 2026 ==================== -->
+<div id="panel-2026" class="year-panel active">
+
+<div class="kpi-grid">
+  <div class="kpi-card"><div class="kpi-icon">🧭</div><div class="kpi-value">773</div><div class="kpi-label">Total Leads</div><div class="kpi-sub">Cumul Jan-Mai</div></div>
+  <div class="kpi-card"><div class="kpi-icon">✈️</div><div class="kpi-value teal">195</div><div class="kpi-label">Convertis</div><div class="kpi-sub">25% de conversion</div></div>
+  <div class="kpi-card"><div class="kpi-icon">📉</div><div class="kpi-value red">424</div><div class="kpi-label">Perdus</div><div class="kpi-sub">154 encore en cours</div></div>
+  <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-value terra">94 212 €</div><div class="kpi-label">Marge Totale</div><div class="kpi-sub">Cumul Jan-Mai</div></div>
+  <div class="kpi-card"><div class="kpi-icon">👥</div><div class="kpi-value vert">300</div><div class="kpi-label">Pax</div><div class="kpi-sub">314 € marge/pax</div></div>
+  <div class="kpi-card"><div class="kpi-icon">📊</div><div class="kpi-value">483 €</div><div class="kpi-label">Marge Moy/Dossier</div><div class="kpi-sub">Sur dossiers renseignes</div></div>
+</div>
+
+<div class="section-title">📈 Evolution & Tendances</div>
+<div class="g">
+  <div class="card fw"><h3>Evolution mensuelle</h3>
+    <table class="evo-table"><thead><tr><th>Mois</th><th>Leads</th><th>Convertis</th><th>Taux Conv.</th><th>Perdus</th><th>En cours</th><th>Marge</th><th>Marge Moy</th><th>Pax</th></tr></thead>
+    <tbody><tr><td class="mois-cell">Janvier</td><td>230</td><td>58</td><td>25%</td><td>151</td><td>21</td><td>35 437 €</td><td>644 €</td><td>111</td></tr>
+<tr><td class="mois-cell">Fevrier</td><td>187</td><td>55</td><td>29%</td><td>111</td><td>21</td><td>33 859 €</td><td>616 €</td><td>79</td></tr>
+<tr><td class="mois-cell">Mars</td><td>154</td><td>33</td><td>21%</td><td>102</td><td>19</td><td>13 721 €</td><td>508 €</td><td>46</td></tr>
+<tr><td class="mois-cell">Avril</td><td>146</td><td>42</td><td>29%</td><td>54</td><td>50</td><td>9 292 €</td><td>465 €</td><td>55</td></tr>
+<tr><td class="mois-cell">Mai <span style="font-size:9px;opacity:.6">(en cours)</span></td><td>56</td><td>7</td><td>12%</td><td>6</td><td>43</td><td>1 903 €</td><td>634 €</td><td>9</td></tr>
+<tr class="proj-row"><td class="mois-cell">↳ Projection fin de mois</td><td>~145</td><td>~18</td><td>~12%</td><td>-</td><td>-</td><td>~4 914 €</td><td>-</td><td>~23</td></tr>
+<tr class="total-row"><td style="text-align:left">TOTAL</td><td>773</td><td>195</td><td>25%</td><td>424</td><td>154</td><td>94 212 €</td><td>483 €</td><td>300</td></tr>
+</tbody></table></div>
+  <div class="card"><h3>Tendance - Leads & Conversions</h3><canvas id="trend26"></canvas></div>
+  <div class="card"><h3>Tendance - Marge mensuelle</h3><canvas id="margeTrend26"></canvas></div>
+</div>
+
+<div class="section-title">🎯 Objectifs 2026</div>
+<div class="g">
+  <div class="card fw"><h3>Forecast Marge - Odysway</h3><canvas id="fcOdy" style="max-height:300px"></canvas>
+    <div class="forecast-summary"><div class="fs-item"><div class="fs-label">Reel cumule</div><div class="fs-val terra" id="fcOdyReal">-</div></div>
+      <div class="fs-item"><div class="fs-label">Objectif annuel</div><div class="fs-val">475 471 €</div></div>
+      <div class="fs-item"><div class="fs-label">Atteinte</div><div class="fs-val terra" id="fcOdyPct">-</div></div></div></div>
+  <div class="card fw"><h3>Forecast Marge - Tribus</h3><canvas id="fcTri" style="max-height:260px"></canvas>
+    <div class="forecast-summary"><div class="fs-item"><div class="fs-label">Reel cumule</div><div class="fs-val terra" id="fcTriReal">-</div></div>
+      <div class="fs-item"><div class="fs-label">Objectif annuel</div><div class="fs-val">137 604 €</div></div>
+      <div class="fs-item"><div class="fs-label">Atteinte</div><div class="fs-val terra" id="fcTriPct">-</div></div></div></div>
+</div>
+
+<div class="section-title">📊 Evolution N vs N-1</div>
+<div class="g">
+  <div class="card fw"><h3>Marge mensuelle 2026 vs 2025</h3><canvas id="evoNvsN1" style="max-height:300px"></canvas></div>
+</div>
+
+<div class="section-title">🌍 Destinations & Voyages</div>
+<div class="g">
+  <div class="card"><h3>Destinations - par volume de leads</h3><canvas id="dest26"></canvas></div>
+  <div class="card"><h3>Par type de voyage</h3><canvas id="type26" style="max-height:310px"></canvas></div>
+  <div class="card fw"><h3>Top voyages <span style="font-size:9px;font-weight:400;color:var(--n500);text-transform:none;letter-spacing:0">(cliquez pour trier)</span></h3>
+    <table class="mini-table sortable" id="voyTable26"><thead><tr><th data-col="v">Voyage</th><th data-col="l">Leads</th><th data-col="c">Convertis</th><th data-col="t">Taux Conv.</th><th data-col="m" class="sort-desc">Marge</th><th></th></tr></thead><tbody id="voyBody26"></tbody></table></div>
+</div>
+
+<div class="section-title">💰 Analyse de la Marge</div>
+<div class="g">
+  <div class="card"><h3>Repartition de la marge</h3><canvas id="margeDonut26"></canvas></div>
+  <div class="card"><h3>Marge par destination</h3><canvas id="margeDest26"></canvas></div>
+</div>
+
+<div class="section-title">❌ Annulations</div>
+<div class="g">
+  <div class="card fw">
+    <h3>Impact des annulations</h3>
+    <div style="display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="text-align:center;padding:12px 20px;background:var(--teal-bg);border-radius:10px;flex:1;min-width:120px"><div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px">Annulations</div><div style="font-size:22px;font-weight:700;color:var(--bleu)">3</div></div>
+      <div style="text-align:center;padding:12px 20px;background:var(--coral-bg);border-radius:10px;flex:1;min-width:120px"><div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px">Marge perdue</div><div style="font-size:22px;font-weight:700;color:var(--red)">1 393 €</div></div>
+      <div style="text-align:center;padding:12px 20px;background:var(--teal-bg);border-radius:10px;flex:1;min-width:120px"><div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px">Frais recuperes</div><div style="font-size:22px;font-weight:700;color:var(--vert)">0 €</div></div>
+      <div style="text-align:center;padding:12px 20px;background:var(--coral-bg);border-radius:10px;flex:1;min-width:120px"><div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px">Perte nette</div><div style="font-size:22px;font-weight:700;color:var(--red)">1 393 €</div></div>
+      <div style="text-align:center;padding:12px 20px;background:var(--teal-bg);border-radius:10px;flex:1;min-width:120px"><div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px">Impact sur marge</div><div style="font-size:22px;font-weight:700;color:var(--bleu)">2%</div></div>
+      <div style="text-align:center;padding:12px 20px;background:var(--teal-bg);border-radius:10px;flex:1;min-width:120px"><div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px">Marge conservee</div><div style="font-size:22px;font-weight:700;color:var(--vert)">92 819 €</div></div>
+    </div>
+    <table class="mini-table"><thead><tr><th>Voyage</th><th>Marge perdue</th><th>Frais recup.</th><th>Net</th></tr></thead>
+    <tbody>
+      <tr><td>Trek chez l'habitant au Népal, au f...</td><td style="color:var(--red);font-weight:600">590 €</td><td style="color:var(--vert);font-weight:600">0 €</td><td style="color:var(--red);font-weight:700">-590 €</td></tr>
+      <tr><td>Trek chez l'habitant au Népal, au f...</td><td style="color:var(--red);font-weight:600">590 €</td><td style="color:var(--vert);font-weight:600">0 €</td><td style="color:var(--red);font-weight:700">-590 €</td></tr>
+      <tr><td>Immersion pastorale et randonnées e...</td><td style="color:var(--red);font-weight:600">213 €</td><td style="color:var(--vert);font-weight:600">0 €</td><td style="color:var(--red);font-weight:700">-213 €</td></tr>
+    </tbody></table>
+  </div>
+</div>
+
+<div class="section-title">👤 Equipe & Analyse des Pertes</div>
+<div class="g">
+  <div class="card"><h3>Performance par commercial</h3><canvas id="comm26"></canvas></div>
+  <div class="card"><h3>Raisons de perte</h3><canvas id="raison26"></canvas></div>
+</div>
+</div>
+
+<!-- ==================== 2025 ==================== -->
+<div id="panel-2025" class="year-panel">
+
+<div class="kpi-grid">
+  <div class="kpi-card"><div class="kpi-icon">🧭</div><div class="kpi-value">2 352</div><div class="kpi-label">Total Leads</div><div class="kpi-sub">Annee 2025</div></div>
+  <div class="kpi-card"><div class="kpi-icon">✈️</div><div class="kpi-value teal">499</div><div class="kpi-label">Convertis</div><div class="kpi-sub">21% de conversion</div></div>
+  <div class="kpi-card"><div class="kpi-icon">📉</div><div class="kpi-value red">1 824</div><div class="kpi-label">Perdus</div><div class="kpi-sub">29 encore en cours</div></div>
+  <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-value terra">279 969 €</div><div class="kpi-label">Marge Totale</div><div class="kpi-sub">Annee 2025</div></div>
+  <div class="kpi-card"><div class="kpi-icon">👥</div><div class="kpi-value vert">694</div><div class="kpi-label">Pax</div><div class="kpi-sub">403 € marge/pax</div></div>
+  <div class="kpi-card"><div class="kpi-icon">📊</div><div class="kpi-value">561 €</div><div class="kpi-label">Marge Moy/Dossier</div><div class="kpi-sub">Sur dossiers renseignes</div></div>
+</div>
+
+<div class="section-title">📈 Evolution & Tendances</div>
+<div class="g">
+  <div class="card fw"><h3>Evolution mensuelle 2025</h3>
+    <table class="evo-table"><thead><tr><th>Mois</th><th>Leads</th><th>Convertis</th><th>Taux Conv.</th><th>Perdus</th><th>En cours</th><th>Marge</th><th>Marge Moy</th><th>Pax</th></tr></thead>
+    <tbody><tr><td class="mois-cell">Janvier</td><td>260</td><td>47</td><td>18%</td><td>212</td><td>1</td><td>31 293 €</td><td>695 €</td><td>73</td></tr>
+<tr><td class="mois-cell">Fevrier</td><td>311</td><td>47</td><td>15%</td><td>263</td><td>1</td><td>33 379 €</td><td>726 €</td><td>64</td></tr>
+<tr><td class="mois-cell">Mars</td><td>230</td><td>39</td><td>17%</td><td>189</td><td>2</td><td>17 482 €</td><td>530 €</td><td>53</td></tr>
+<tr><td class="mois-cell">Avril</td><td>183</td><td>24</td><td>13%</td><td>156</td><td>3</td><td>10 792 €</td><td>469 €</td><td>28</td></tr>
+<tr><td class="mois-cell">Mai</td><td>155</td><td>43</td><td>28%</td><td>112</td><td>0</td><td>21 119 €</td><td>517 €</td><td>61</td></tr>
+<tr><td class="mois-cell">Juin</td><td>186</td><td>49</td><td>26%</td><td>134</td><td>3</td><td>25 743 €</td><td>560 €</td><td>64</td></tr>
+<tr><td class="mois-cell">Juillet</td><td>146</td><td>41</td><td>28%</td><td>104</td><td>1</td><td>16 711 €</td><td>428 €</td><td>49</td></tr>
+<tr><td class="mois-cell">Aout</td><td>147</td><td>39</td><td>27%</td><td>104</td><td>4</td><td>21 933 €</td><td>562 €</td><td>56</td></tr>
+<tr><td class="mois-cell">Septembre</td><td>137</td><td>29</td><td>21%</td><td>106</td><td>2</td><td>18 020 €</td><td>621 €</td><td>40</td></tr>
+<tr><td class="mois-cell">Octobre</td><td>206</td><td>36</td><td>17%</td><td>165</td><td>5</td><td>19 796 €</td><td>600 €</td><td>51</td></tr>
+<tr><td class="mois-cell">Novembre</td><td>205</td><td>43</td><td>21%</td><td>157</td><td>5</td><td>30 282 €</td><td>704 €</td><td>68</td></tr>
+<tr><td class="mois-cell">Decembre</td><td>186</td><td>62</td><td>33%</td><td>122</td><td>2</td><td>33 421 €</td><td>597 €</td><td>87</td></tr>
+<tr class="total-row"><td style="text-align:left">TOTAL</td><td>2 352</td><td>499</td><td>21%</td><td>1 824</td><td>29</td><td>279 969 €</td><td>561 €</td><td>694</td></tr>
+</tbody></table></div>
+  <div class="card"><h3>Tendance - Leads & Conversions</h3><canvas id="trend25"></canvas></div>
+  <div class="card"><h3>Tendance - Marge mensuelle</h3><canvas id="margeTrend25"></canvas></div>
+</div>
+
+<div class="section-title">🌍 Destinations & Voyages</div>
+<div class="g">
+  <div class="card"><h3>Destinations - par volume de leads</h3><canvas id="dest25"></canvas></div>
+  <div class="card"><h3>Par type de voyage</h3><canvas id="type25" style="max-height:310px"></canvas></div>
+  <div class="card fw"><h3>Top voyages <span style="font-size:9px;font-weight:400;color:var(--n500);text-transform:none;letter-spacing:0">(cliquez pour trier)</span></h3>
+    <table class="mini-table sortable" id="voyTable25"><thead><tr><th data-col="v">Voyage</th><th data-col="l">Leads</th><th data-col="c">Convertis</th><th data-col="t">Taux Conv.</th><th data-col="m" class="sort-desc">Marge</th><th></th></tr></thead><tbody id="voyBody25"></tbody></table></div>
+</div>
+
+<div class="section-title">💰 Analyse de la Marge</div>
+<div class="g">
+  <div class="card"><h3>Repartition de la marge</h3><canvas id="margeDonut25"></canvas></div>
+  <div class="card"><h3>Marge par destination</h3><canvas id="margeDest25"></canvas></div>
+</div>
+
+<div class="section-title">❌ Annulations</div>
+<div class="g">
+  <div class="card fw">
+    <h3>Impact des annulations</h3>
+    <div style="display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="text-align:center;padding:12px 20px;background:var(--teal-bg);border-radius:10px;flex:1;min-width:120px"><div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px">Annulations</div><div style="font-size:22px;font-weight:700;color:var(--bleu)">22</div></div>
+      <div style="text-align:center;padding:12px 20px;background:var(--coral-bg);border-radius:10px;flex:1;min-width:120px"><div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px">Marge perdue</div><div style="font-size:22px;font-weight:700;color:var(--red)">12 902 €</div></div>
+      <div style="text-align:center;padding:12px 20px;background:var(--teal-bg);border-radius:10px;flex:1;min-width:120px"><div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px">Frais recuperes</div><div style="font-size:22px;font-weight:700;color:var(--vert)">3 389 €</div></div>
+      <div style="text-align:center;padding:12px 20px;background:var(--coral-bg);border-radius:10px;flex:1;min-width:120px"><div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px">Perte nette</div><div style="font-size:22px;font-weight:700;color:var(--red)">9 513 €</div></div>
+      <div style="text-align:center;padding:12px 20px;background:var(--teal-bg);border-radius:10px;flex:1;min-width:120px"><div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px">Impact sur marge</div><div style="font-size:22px;font-weight:700;color:var(--bleu)">3%</div></div>
+      <div style="text-align:center;padding:12px 20px;background:var(--teal-bg);border-radius:10px;flex:1;min-width:120px"><div style="font-size:10px;color:var(--n500);text-transform:uppercase;letter-spacing:.5px">Marge conservee</div><div style="font-size:22px;font-weight:700;color:var(--vert)">270 456 €</div></div>
+    </div>
+    <table class="mini-table"><thead><tr><th>Voyage</th><th>Marge perdue</th><th>Frais recup.</th><th>Net</th></tr></thead>
+    <tbody>
+      <tr><td>Trek chez l'habitant au Népal, au f...</td><td style="color:var(--red);font-weight:600">1 372 €</td><td style="color:var(--vert);font-weight:600">0 €</td><td style="color:var(--red);font-weight:700">-1 372 €</td></tr>
+      <tr><td>Pérou : immersion chamanique et ren...</td><td style="color:var(--red);font-weight:600">1 249 €</td><td style="color:var(--vert);font-weight:600">0 €</td><td style="color:var(--red);font-weight:700">-1 249 €</td></tr>
+      <tr><td>Retraite Himalayenne : méditation e...</td><td style="color:var(--red);font-weight:600">1 088 €</td><td style="color:var(--vert);font-weight:600">1 645 €</td><td style="color:var(--vert);font-weight:700">+557 €</td></tr>
+      <tr><td>Louxor, Vallée des Rois et croisièr...</td><td style="color:var(--red);font-weight:600">957 €</td><td style="color:var(--vert);font-weight:600">0 €</td><td style="color:var(--red);font-weight:700">-957 €</td></tr>
+      <tr><td>Séjour multi-activités en Laponie f...</td><td style="color:var(--red);font-weight:600">870 €</td><td style="color:var(--vert);font-weight:600">0 €</td><td style="color:var(--red);font-weight:700">-870 €</td></tr>
+      <tr><td>Voyagez en terre chamane en Mongoli...</td><td style="color:var(--red);font-weight:600">809 €</td><td style="color:var(--vert);font-weight:600">904 €</td><td style="color:var(--vert);font-weight:700">+95 €</td></tr>
+      <tr><td>Trek chez l'habitant au Népal, au f...</td><td style="color:var(--red);font-weight:600">768 €</td><td style="color:var(--vert);font-weight:600">840 €</td><td style="color:var(--vert);font-weight:700">+73 €</td></tr>
+      <tr><td>Trek chez l'habitant au Népal, au f...</td><td style="color:var(--red);font-weight:600">667 €</td><td style="color:var(--vert);font-weight:600">0 €</td><td style="color:var(--red);font-weight:700">-667 €</td></tr>
+      <tr><td>Voyagez en terre chamane en Mongoli...</td><td style="color:var(--red);font-weight:600">664 €</td><td style="color:var(--vert);font-weight:600">0 €</td><td style="color:var(--red);font-weight:700">-664 €</td></tr>
+      <tr><td>Voyage sur-mesure au Népal</td><td style="color:var(--red);font-weight:600">551 €</td><td style="color:var(--vert);font-weight:600">0 €</td><td style="color:var(--red);font-weight:700">-551 €</td></tr>
+    </tbody></table>
+  </div>
+</div>
+
+<div class="section-title">👤 Equipe & Analyse des Pertes</div>
+<div class="g">
+  <div class="card"><h3>Performance par commercial</h3><canvas id="comm25"></canvas></div>
+  <div class="card"><h3>Raisons de perte</h3><canvas id="raison25"></canvas></div>
+</div>
+</div>
+
+</div>
+<div class="footer">Rapport genere automatiquement - <strong>Odysway</strong> - Donnees ActiveCampaign - Mise a jour : 12 mai 2026</div>
+
+<script>
+Chart.register(ChartDataLabels);
+const C={bleu:'#2B4C52',terra:'#DB6644',teal:'#237C8C',tealLight:'#9CC5CC',tealBg:'#D6ECEF',
+  ocre:'#F0B348',vert:'#2D5843',sage:'#7D9676',saumon:'#EB9A82',red:'#C0392B',
+  pal:['#237C8C','#DB6644','#2D5843','#9CC5CC','#F0B348','#2B4C52','#7D9676','#EB9A82','#EADFB1','#767676']};
+Chart.defaults.font.family="'DM Sans',system-ui,sans-serif";Chart.defaults.font.size=11;Chart.defaults.color='#2B4C52';
+const NL={datalabels:{display:false}};
+
+const D26={"monthly": [{"mois": "2026-01", "leads": 230, "conv": 58, "taux": 25, "perdus": 151, "en_cours": 21, "marge": 35437, "marge_moy": 644, "nb_pax": 111}, {"mois": "2026-02", "leads": 187, "conv": 55, "taux": 29, "perdus": 111, "en_cours": 21, "marge": 33859, "marge_moy": 616, "nb_pax": 79}, {"mois": "2026-03", "leads": 154, "conv": 33, "taux": 21, "perdus": 102, "en_cours": 19, "marge": 13721, "marge_moy": 508, "nb_pax": 46}, {"mois": "2026-04", "leads": 146, "conv": 42, "taux": 29, "perdus": 54, "en_cours": 50, "marge": 9292, "marge_moy": 465, "nb_pax": 55}, {"mois": "2026-05", "leads": 56, "conv": 7, "taux": 12, "perdus": 6, "en_cours": 43, "marge": 1903, "marge_moy": 634, "nb_pax": 9}], "totals": {"leads": 773, "conv": 195, "perdus": 424, "en_cours": 154, "taux": 25, "marge": 94212, "nb_pax": 300}, "destinations": [{"dest": "France", "leads": 71, "conv": 25, "taux": 35, "marge": 6870}, {"dest": "Népal", "leads": 62, "conv": 14, "taux": 23, "marge": 8714}, {"dest": "Pérou", "leads": 53, "conv": 9, "taux": 17, "marge": 3369}, {"dest": "Mongolie", "leads": 52, "conv": 19, "taux": 37, "marge": 12094}, {"dest": "Finlande", "leads": 52, "conv": 1, "taux": 2, "marge": 367}, {"dest": "Vietnam", "leads": 40, "conv": 1, "taux": 2, "marge": 294}, {"dest": "Grèce", "leads": 36, "conv": 26, "taux": 72, "marge": 0}, {"dest": "Thaïlande", "leads": 30, "conv": 4, "taux": 13, "marge": 2143}, {"dest": "Japon", "leads": 23, "conv": 0, "taux": 0, "marge": 0}, {"dest": "Inde", "leads": 9, "conv": 5, "taux": 56, "marge": 2395}, {"dest": "Sri Lanka", "leads": 9, "conv": 0, "taux": 0, "marge": 0}, {"dest": "Costa Rica", "leads": 7, "conv": 0, "taux": 0, "marge": 0}], "types": [{"t": "Groupe", "l": 514, "c": 155, "tx": 30, "m": 66060, "mpd": 426}, {"t": "Sur-mesure", "l": 64, "c": 14, "tx": 22, "m": 12989, "mpd": 928}, {"t": "Individuel", "l": 82, "c": 15, "tx": 18, "m": 7342, "mpd": 489}, {"t": "Existant Adapté", "l": 9, "c": 8, "tx": 89, "m": 7274, "mpd": 909}, {"t": "Partenaire", "l": 1, "c": 1, "tx": 100, "m": 205, "mpd": 205}], "marge_repart": [{"s": "Marge base", "v": 84953}, {"s": "Marge vol", "v": 6983}, {"s": "Assurance", "v": 3832}, {"s": "Extension", "v": 16002}], "raisons": [{"raison": "Injoignable (aucun contact)", "count": 127}, {"raison": "Simple Curieux", "count": 65}, {"raison": "Projet Annulé", "count": 37}, {"raison": "Projet Reporté", "count": 32}, {"raison": "Trop cher", "count": 31}, {"raison": "Injoignable après contact", "count": 30}, {"raison": "A choisi une autre agence", "count": 28}, {"raison": "Raisons personnelles", "count": 23}, {"raison": "Budget Insuffisant", "count": 20}, {"raison": "Non renseignée", "count": 13}], "commerciaux": [{"name": "Coralie", "leads": 430, "conv": 102, "taux": 24, "marge": 43001}, {"name": "Lucie", "leads": 301, "conv": 73, "taux": 24, "marge": 42073}, {"name": "Karen", "leads": 31, "conv": 10, "taux": 32, "marge": 5079}, {"name": "Marina", "leads": 11, "conv": 10, "taux": 91, "marge": 4059}], "top_voyages": [{"v": "Voyagez en terre chamane en Mongolie", "l": 75, "c": 35, "t": 47, "m": 22258}, {"v": "Trek chez l'habitant au Népal, au fil des ...", "l": 66, "c": 21, "t": 32, "m": 15143}, {"v": "Pérou : immersion chamanique et rencontres...", "l": 80, "c": 18, "t": 22, "m": 9374}, {"v": "Séjour multi-activités en Laponie finlanda...", "l": 56, "c": 4, "t": 7, "m": 3753}, {"v": "Immersion pastorale et randonnées en Béarn", "l": 38, "c": 8, "t": 21, "m": 2412}, {"v": "Journée Paris", "l": 1, "c": 1, "t": 100, "m": 2368}, {"v": "Promostim / Sur-mesure aux Etats-Unis", "l": 1, "c": 1, "t": 100, "m": 2321}, {"v": "A la découverte du Népal : randonnées acce...", "l": 18, "c": 5, "t": 28, "m": 2107}, {"v": "Immersion au Japon : entre traditions, mon...", "l": 28, "c": 1, "t": 4, "m": 2040}, {"v": "sur-mesure au Japon", "l": 2, "c": 1, "t": 50, "m": 1955}, {"v": "Voyage au Rajasthan : éveil des sens au cœ...", "l": 6, "c": 5, "t": 83, "m": 1797}, {"v": "Séjour photographique au Canada avec Benoi...", "l": 5, "c": 5, "t": 100, "m": 1780}, {"v": "Retraite Himalayenne : méditation et yoga ...", "l": 6, "c": 3, "t": 50, "m": 1771}, {"v": "Stage boxe thaï en immersion dans le nord ...", "l": 28, "c": 3, "t": 11, "m": 1523}, {"v": "Açores : randonnées, volcans et baleines", "l": 5, "c": 3, "t": 60, "m": 1470}]};
+const D25={"monthly": [{"mois": "2025-01", "leads": 260, "conv": 47, "taux": 18, "perdus": 212, "en_cours": 1, "marge": 31293, "marge_moy": 695, "nb_pax": 73}, {"mois": "2025-02", "leads": 311, "conv": 47, "taux": 15, "perdus": 263, "en_cours": 1, "marge": 33379, "marge_moy": 726, "nb_pax": 64}, {"mois": "2025-03", "leads": 230, "conv": 39, "taux": 17, "perdus": 189, "en_cours": 2, "marge": 17482, "marge_moy": 530, "nb_pax": 53}, {"mois": "2025-04", "leads": 183, "conv": 24, "taux": 13, "perdus": 156, "en_cours": 3, "marge": 10792, "marge_moy": 469, "nb_pax": 28}, {"mois": "2025-05", "leads": 155, "conv": 43, "taux": 28, "perdus": 112, "en_cours": 0, "marge": 21119, "marge_moy": 517, "nb_pax": 61}, {"mois": "2025-06", "leads": 186, "conv": 49, "taux": 26, "perdus": 134, "en_cours": 3, "marge": 25743, "marge_moy": 560, "nb_pax": 64}, {"mois": "2025-07", "leads": 146, "conv": 41, "taux": 28, "perdus": 104, "en_cours": 1, "marge": 16711, "marge_moy": 428, "nb_pax": 49}, {"mois": "2025-08", "leads": 147, "conv": 39, "taux": 27, "perdus": 104, "en_cours": 4, "marge": 21933, "marge_moy": 562, "nb_pax": 56}, {"mois": "2025-09", "leads": 137, "conv": 29, "taux": 21, "perdus": 106, "en_cours": 2, "marge": 18020, "marge_moy": 621, "nb_pax": 40}, {"mois": "2025-10", "leads": 206, "conv": 36, "taux": 17, "perdus": 165, "en_cours": 5, "marge": 19796, "marge_moy": 600, "nb_pax": 51}, {"mois": "2025-11", "leads": 205, "conv": 43, "taux": 21, "perdus": 157, "en_cours": 5, "marge": 30282, "marge_moy": 704, "nb_pax": 68}, {"mois": "2025-12", "leads": 186, "conv": 62, "taux": 33, "perdus": 122, "en_cours": 2, "marge": 33421, "marge_moy": 597, "nb_pax": 87}], "totals": {"leads": 2352, "conv": 499, "perdus": 1824, "en_cours": 29, "taux": 21, "marge": 279969, "nb_pax": 694}, "destinations": [{"dest": "Thaïlande", "leads": 316, "conv": 12, "taux": 4, "marge": 5871}, {"dest": "Népal", "leads": 170, "conv": 42, "taux": 25, "marge": 33012}, {"dest": "Finlande", "leads": 140, "conv": 14, "taux": 10, "marge": 13747}, {"dest": "Mongolie", "leads": 104, "conv": 32, "taux": 31, "marge": 22881}, {"dest": "Sud Ouest", "leads": 90, "conv": 37, "taux": 41, "marge": 12641}, {"dest": "Chine", "leads": 79, "conv": 1, "taux": 1, "marge": 550}, {"dest": "Pérou", "leads": 76, "conv": 14, "taux": 18, "marge": 8284}, {"dest": "Inde", "leads": 65, "conv": 19, "taux": 29, "marge": 11696}, {"dest": "Vietnam", "leads": 54, "conv": 6, "taux": 11, "marge": 2050}, {"dest": "Alpes", "leads": 43, "conv": 11, "taux": 26, "marge": 2085}, {"dest": "Costa Rica", "leads": 41, "conv": 8, "taux": 20, "marge": 5960}, {"dest": "France", "leads": 33, "conv": 15, "taux": 45, "marge": 3088}], "types": [{"t": "Groupe", "l": 913, "c": 309, "tx": 34, "m": 172482, "mpd": 558}, {"t": "Individuel", "l": 624, "c": 41, "tx": 7, "m": 27794, "mpd": 678}, {"t": "Partenaire", "l": 70, "c": 70, "tx": 100, "m": 27427, "mpd": 392}, {"t": "Sur-mesure", "l": 263, "c": 41, "tx": 16, "m": 25851, "mpd": 631}, {"t": "Existant Adapté", "l": 12, "c": 12, "tx": 100, "m": 9663, "mpd": 805}], "marge_repart": [{"s": "Marge base", "v": 250404}, {"s": "Marge vol", "v": 28502}, {"s": "Assurance", "v": 8318}, {"s": "Extension", "v": 29869}], "raisons": [{"raison": "Injoignable (aucun contact)", "count": 545}, {"raison": "Simple Curieux", "count": 237}, {"raison": "Injoignable après contact", "count": 221}, {"raison": "Projet Annulé", "count": 183}, {"raison": "Non renseignée", "count": 137}, {"raison": "Autre", "count": 101}, {"raison": "Ne correspond pas aux attentes", "count": 100}, {"raison": "Projet Reporté", "count": 94}, {"raison": "Trop cher", "count": 88}, {"raison": "Raisons personnelles", "count": 60}], "commerciaux": [{"name": "Lucie", "leads": 1148, "conv": 276, "taux": 24, "marge": 164795}, {"name": "Coralie", "leads": 819, "conv": 190, "taux": 23, "marge": 99523}, {"name": "Marina", "leads": 256, "conv": 32, "taux": 12, "marge": 15001}, {"name": "Karen", "leads": 129, "conv": 1, "taux": 1, "marge": 650}], "top_voyages": [{"v": "Trek chez l'habitant au Népal, au fil des ...", "l": 141, "c": 57, "t": 40, "m": 47878}, {"v": "Voyagez en terre chamane en Mongolie", "l": 155, "c": 58, "t": 37, "m": 41850}, {"v": "Séjour multi-activités en Laponie finlanda...", "l": 156, "c": 20, "t": 13, "m": 18377}, {"v": "Vis ma vie de berger dans les Pyrénées", "l": 114, "c": 37, "t": 32, "m": 13020}, {"v": "A la découverte du Népal : randonnées acce...", "l": 87, "c": 19, "t": 22, "m": 10048}, {"v": "Retraite Himalayenne : méditation et yoga ...", "l": 16, "c": 14, "t": 88, "m": 8773}, {"v": "Occupez-vous des animaux de la jungle au C...", "l": 55, "c": 10, "t": 18, "m": 7566}, {"v": "Pérou : immersion chamanique et rencontres...", "l": 35, "c": 11, "t": 31, "m": 7050}, {"v": "Voyage avec un chamane en immersion dans l...", "l": 50, "c": 10, "t": 20, "m": 6567}, {"v": "Immersion au Japon : entre traditions, mon...", "l": 20, "c": 5, "t": 25, "m": 5710}, {"v": "Stage boxe thaï en immersion dans le nord ...", "l": 329, "c": 11, "t": 3, "m": 5536}, {"v": "Séjour photographique en Ecosse avec Jean-...", "l": 14, "c": 14, "t": 100, "m": 4884}, {"v": "Séjour photo sur la côte d'Argent portugai...", "l": 18, "c": 18, "t": 100, "m": 4282}, {"v": "Séjour photographique en Ecosse", "l": 13, "c": 13, "t": 100, "m": 3792}, {"v": "Immersion culturelle et aventures en terre...", "l": 4, "c": 1, "t": 25, "m": 3574}]};
+
+// Tab switching
+const charts={};
+function switchYear(y){
+  document.querySelectorAll('.year-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+y).classList.add('active');
+  event.target.classList.add('active');
+  document.getElementById('headerTitle').textContent='Dashboard Commercial — '+y;
+  // Resize charts after tab switch
+  setTimeout(()=>Object.values(charts).forEach(c=>c.resize()),100);
+}
+
+// === GENERIC CHART BUILDERS ===
+function buildTrend(id, monthly){
+  const mo=monthly.map(m=>{const s=m.mois.split('-');const n=['Jan','Fev','Mars','Avr','Mai','Juin','Juil','Aout','Sept','Oct','Nov','Dec'];return n[parseInt(s[1])-1];});
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels:mo,datasets:[
+    {label:'Leads',data:monthly.map(m=>m.leads),backgroundColor:C.tealBg,borderColor:C.teal,borderWidth:1,borderRadius:6,...NL},
+    {label:'Convertis',data:monthly.map(m=>m.conv),backgroundColor:C.vert,borderRadius:6,...NL},
+    {label:'Taux Conv.',data:monthly.map(m=>m.taux),type:'line',borderColor:C.terra,pointBackgroundColor:C.terra,pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:6,backgroundColor:'transparent',yAxisID:'y1',tension:.3,...NL}
+  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{usePointStyle:true,padding:14}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label.includes('Taux')?ctx.raw+'%':ctx.raw}}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:'#EAF4F6'},beginAtZero:true},y1:{grid:{display:false},beginAtZero:true,position:'right',max:Math.max(...monthly.map(m=>m.taux))+15,ticks:{callback:v=>v+'%'}}}}});
+}
+
+function buildMargeTrend(id, monthly){
+  const mo=monthly.map(m=>{const s=m.mois.split('-');const n=['Jan','Fev','Mars','Avr','Mai','Juin','Juil','Aout','Sept','Oct','Nov','Dec'];return n[parseInt(s[1])-1];});
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels:mo,datasets:[{data:monthly.map(m=>m.marge),backgroundColor:C.teal,borderRadius:8,...NL}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw.toLocaleString('fr-FR')+' €'}}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'#EAF4F6'},beginAtZero:true,ticks:{callback:v=>(v/1000).toFixed(0)+'k €'}}}}});
+}
+
+function buildDest(id, destinations){
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels:destinations.map(d=>d.dest),datasets:[
+    {label:'Leads',data:destinations.map(d=>d.leads),backgroundColor:C.tealBg,borderColor:C.teal,borderWidth:1,borderRadius:4,...NL},
+    {label:'Convertis',data:destinations.map(d=>d.conv),backgroundColor:C.vert,borderRadius:4,...NL},
+    {label:'Taux Conv.',data:destinations.map(d=>d.taux),type:'line',borderColor:C.terra,pointBackgroundColor:C.terra,pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:5,backgroundColor:'transparent',yAxisID:'y1',tension:.3,...NL}
+  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{usePointStyle:true,padding:12}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label.includes('Taux')?ctx.raw+'%':ctx.raw}}},
+    scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:10}}},y:{grid:{color:'#EAF4F6'},beginAtZero:true},y1:{grid:{display:false},beginAtZero:true,position:'right',max:80,ticks:{callback:v=>v+'%'}}}}});
+}
+
+function buildType(id, types){
+  types.sort((a,b)=>b.m-a.m);
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels:types.map(t=>t.t),datasets:[
+    {label:'Leads',data:types.map(t=>t.l),backgroundColor:C.tealBg,borderColor:C.teal,borderWidth:1,borderRadius:6,...NL},
+    {label:'Convertis',data:types.map(t=>t.c),backgroundColor:[C.teal,C.terra,C.vert,C.ocre,C.sage].slice(0,types.length),borderRadius:6,
+      datalabels:{anchor:'end',align:'top',color:C.bleu,font:{weight:'700',size:13},formatter:(v,ctx)=>types[ctx.dataIndex].tx+'%'}}
+  ]},options:{responsive:true,layout:{padding:{top:30}},
+    plugins:{legend:{position:'top',labels:{usePointStyle:true,padding:12}},
+      tooltip:{backgroundColor:C.bleu,titleFont:{size:13,weight:'600'},bodyFont:{size:12},padding:14,cornerRadius:10,displayColors:false,
+        callbacks:{title:ctx=>[types[ctx[0].dataIndex].t],
+          label:ctx=>{const t=types[ctx.dataIndex];return['','  Leads : '+t.l,'  Convertis : '+t.c,'  Taux : '+t.tx+'%','','  Marge totale : '+t.m.toLocaleString('fr-FR')+' €','  Marge/dossier : '+(t.mpd||0).toLocaleString('fr-FR')+' €'];}}}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:'#EAF4F6'},beginAtZero:true}}},
+    plugins:[{afterDraw(chart){const ctx=chart.ctx,xA=chart.scales.x,top=chart.chartArea.top;ctx.save();ctx.textAlign='center';
+      types.forEach((t,i)=>{const x=xA.getPixelForTick(i);ctx.font="700 15px 'DM Sans'";ctx.fillStyle=C.terra;ctx.fillText(t.m.toLocaleString('fr-FR')+' €',x,top-8);});ctx.restore();}}]});
+}
+
+function buildDonut(id, marge_repart){
+  const mrT=marge_repart.reduce((a,b)=>a+b.v,0);
+  charts[id]=new Chart(document.getElementById(id),{type:'doughnut',data:{labels:marge_repart.map(m=>m.s),
+    datasets:[{data:marge_repart.map(m=>m.v),backgroundColor:[C.teal,C.terra,C.tealLight,C.vert],borderWidth:3,borderColor:'#fff',hoverOffset:8,...NL}]},
+    options:{responsive:true,cutout:'58%',plugins:{legend:{position:'bottom',labels:{padding:14,usePointStyle:true}},
+      tooltip:{callbacks:{label:ctx=>ctx.label+' : '+ctx.raw.toLocaleString('fr-FR')+' € ('+Math.round(ctx.raw/mrT*100)+'%)'}}}}});
+}
+
+function buildMargeDest(id, destinations){
+  const d=[...destinations].filter(d=>d.marge>0).sort((a,b)=>b.marge-a.marge);
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels:d.map(x=>x.dest),
+    datasets:[{data:d.map(x=>x.marge),backgroundColor:C.pal,borderRadius:6,borderSkipped:false,...NL}]},
+    options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw.toLocaleString('fr-FR')+' €'}}},
+      scales:{x:{grid:{display:false},ticks:{callback:v=>(v/1000).toFixed(0)+'k €'}},y:{grid:{display:false}}}}});
+}
+
+function buildComm(id, commerciaux){
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels:commerciaux.map(c=>c.name),datasets:[
+    {label:'Leads',data:commerciaux.map(c=>c.leads),backgroundColor:C.tealBg,borderColor:C.teal,borderWidth:1,borderRadius:5,...NL},
+    {label:'Convertis',data:commerciaux.map(c=>c.conv),backgroundColor:C.vert,borderRadius:5,...NL},
+    {label:'Marge (€)',data:commerciaux.map(c=>c.marge),backgroundColor:C.terra,borderRadius:5,yAxisID:'y1',...NL}
+  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{usePointStyle:true,padding:12}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label.includes('Marge')?ctx.raw.toLocaleString('fr-FR')+' €':ctx.raw}}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:'#EAF4F6'},beginAtZero:true},y1:{grid:{display:false},beginAtZero:true,position:'right',ticks:{callback:v=>(v/1000).toFixed(0)+'k €'}}}}});
+}
+
+function buildRaison(id, raisons){
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels:raisons.map(r=>r.raison.length>28?r.raison.substring(0,28)+'...':r.raison),
+    datasets:[{data:raisons.map(r=>r.count),backgroundColor:C.pal,borderRadius:6,borderSkipped:false,...NL}]},
+    options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{display:false}}}}});
+}
+
+function buildSortableTable(tableId, bodyId, voyages){
+  let curSort={col:'m',dir:'desc'};
+  function render(data){
+    const tb=document.getElementById(bodyId);tb.innerHTML='';const mx=Math.max(...data.map(v=>v.m));
+    data.forEach(v=>{const pct=mx>0?(v.m/mx*100).toFixed(0):0;const txC=v.t>=30?C.vert:v.t>=15?C.teal:C.red;
+      tb.innerHTML+=`<tr><td style="font-weight:500">${v.v}</td><td style="text-align:center">${v.l}</td>
+        <td style="text-align:center"><span class="badge badge-teal">${v.c}</span></td>
+        <td style="text-align:center;font-weight:600;color:${txC}">${v.t}%</td>
+        <td style="font-weight:700;color:var(--terra)">${v.m.toLocaleString('fr-FR')} €</td>
+        <td style="width:20%"><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div></td></tr>`;});}
+  function sort(col){
+    if(curSort.col===col) curSort.dir=curSort.dir==='desc'?'asc':'desc'; else curSort={col,dir:'desc'};
+    const s=[...voyages].sort((a,b)=>{const va=a[col],vb=b[col];if(typeof va==='string')return curSort.dir==='asc'?va.localeCompare(vb):vb.localeCompare(va);return curSort.dir==='asc'?va-vb:vb-va;});
+    document.querySelectorAll('#'+tableId+' th').forEach(th=>{th.classList.remove('sort-asc','sort-desc');if(th.dataset.col===col)th.classList.add('sort-'+curSort.dir);});render(s);}
+  document.querySelectorAll('#'+tableId+' th[data-col]').forEach(th=>{th.addEventListener('click',()=>sort(th.dataset.col));});
+  render(voyages);
+}
+
+// === BUILD 2026 ===
+buildTrend('trend26', D26.monthly);
+buildMargeTrend('margeTrend26', D26.monthly);
+buildDest('dest26', D26.destinations);
+buildType('type26', D26.types);
+buildDonut('margeDonut26', D26.marge_repart);
+buildMargeDest('margeDest26', D26.destinations);
+buildComm('comm26', D26.commerciaux);
+buildRaison('raison26', D26.raisons);
+buildSortableTable('voyTable26','voyBody26', D26.top_voyages);
+
+// === BUILD 2025 ===
+buildTrend('trend25', D25.monthly);
+buildMargeTrend('margeTrend25', D25.monthly);
+buildDest('dest25', D25.destinations);
+buildType('type25', D25.types);
+buildDonut('margeDonut25', D25.marge_repart);
+buildMargeDest('margeDest25', D25.destinations);
+buildComm('comm25', D25.commerciaux);
+buildRaison('raison25', D25.raisons);
+buildSortableTable('voyTable25','voyBody25', D25.top_voyages);
+
+// === FORECASTS (2026 only) ===
+const fmL=['Jan','Fev','Mars','Avr','Mai','Juin','Juil','Aout','Sept','Oct','Nov','Dec'];
+const fOdy=[45000,45000,30000,25000,22000,32000,25000,23000,27000,30000,35000,40000];
+const rOdy=[35437,33859,13721,9292,1903,null,null,null,null,null,null,null];
+const fTri=[10000,8000,8000,8000,5000,5000,3000,3000,17000,20000,20000,10000];
+const rTri=[null,null,null,null,null,null,null,null,null,null,null,null];
+
+function fcColor(r,f){const p=r/f*100;return p>=90?C.vert:p>=70?C.ocre:C.red;}
+
+charts['fcOdy']=new Chart(document.getElementById('fcOdy'),{type:'bar',data:{labels:fmL,datasets:[
+  {label:'Forecast',data:fOdy,backgroundColor:C.tealBg,borderColor:C.teal,borderWidth:1,borderRadius:6,
+    datalabels:{anchor:'end',align:'top',color:'#767676',font:{size:9},formatter:v=>(v/1000).toFixed(0)+'k'}},
+  {label:'Reel',data:rOdy,backgroundColor:rOdy.map((v,i)=>v!==null?fcColor(v,fOdy[i]):C.tealBg),borderRadius:6,
+    datalabels:{anchor:'end',align:'top',color:C.bleu,font:{weight:'700',size:10},
+      formatter:(v,ctx)=>{if(v===null)return'';return Math.round(v/fOdy[ctx.dataIndex]*100)+'%';}}},
+]},options:{responsive:true,plugins:{legend:{position:'top',labels:{usePointStyle:true,padding:14}},
+    tooltip:{callbacks:{label:ctx=>{if(ctx.raw===null)return'';const l=ctx.dataset.label+': '+ctx.raw.toLocaleString('fr-FR')+' €';
+      if(ctx.datasetIndex===1)return l+' ('+Math.round(ctx.raw/fOdy[ctx.dataIndex]*100)+'%)';return l;}}}},
+  scales:{x:{grid:{display:false}},y:{grid:{color:'#EAF4F6'},beginAtZero:true,ticks:{callback:v=>(v/1000).toFixed(0)+'k €'}}}}});
+
+charts['fcTri']=new Chart(document.getElementById('fcTri'),{type:'bar',data:{labels:fmL,datasets:[
+  {label:'Forecast',data:fTri,backgroundColor:C.tealBg,borderColor:C.terra,borderWidth:1,borderRadius:6,
+    datalabels:{anchor:'end',align:'top',color:'#767676',font:{size:9},formatter:v=>(v/1000).toFixed(0)+'k'}},
+  {label:'Reel',data:rTri,backgroundColor:rTri.map((v,i)=>v!==null?fcColor(v,fTri[i]):C.tealBg),borderRadius:6,
+    datalabels:{anchor:'end',align:'top',color:C.bleu,font:{weight:'700',size:10},
+      formatter:(v,ctx)=>{if(v===null)return'';return Math.round(v/fTri[ctx.dataIndex]*100)+'%';}}},
+]},options:{responsive:true,plugins:{legend:{position:'top',labels:{usePointStyle:true,padding:14}},
+    tooltip:{callbacks:{label:ctx=>{if(ctx.raw===null)return'';const l=ctx.dataset.label+': '+ctx.raw.toLocaleString('fr-FR')+' €';
+      if(ctx.datasetIndex===1)return l+' ('+Math.round(ctx.raw/fTri[ctx.dataIndex]*100)+'%)';return l;}}}},
+  scales:{x:{grid:{display:false}},y:{grid:{color:'#EAF4F6'},beginAtZero:true,ticks:{callback:v=>(v/1000).toFixed(0)+'k €'}}}}});
+
+// Forecast summaries
+const rOdySum=rOdy.filter(v=>v!==null).reduce((a,b)=>a+b,0);
+document.getElementById('fcOdyReal').textContent=rOdySum.toLocaleString('fr-FR')+' €';
+document.getElementById('fcOdyPct').textContent=Math.round(rOdySum/475471*100)+'%';
+const rTriSum=rTri.filter(v=>v!==null).reduce((a,b)=>a+b,0);
+document.getElementById('fcTriReal').textContent=rTriSum.toLocaleString('fr-FR')+' €';
+document.getElementById('fcTriPct').textContent=Math.round(rTriSum/137604*100)+'%';
+
+// === EVOLUTION N vs N-1 (2026 only) ===
+const marge2026=[35437,33859,13721,9292,1903,0,0,0,0,0,0,0];
+const marge2025=[31293,33379,17482,10792,21119,25743,16711,21933,18020,19796,30282,33421];
+charts['evoNvsN1']=new Chart(document.getElementById('evoNvsN1'),{type:'bar',data:{labels:fmL,datasets:[
+  {label:'2025',data:marge2025,backgroundColor:C.tealBg,borderColor:C.teal,borderWidth:1,borderRadius:6,...NL},
+  {label:'2026',data:marge2026,backgroundColor:marge2026.map((v,i)=>v>0?(v>=marge2025[i]?C.vert:C.terra):'rgba(0,0,0,0.03)'),borderRadius:6,...NL}
+]},options:{responsive:true,plugins:{legend:{position:'top',labels:{usePointStyle:true,padding:14}},
+    tooltip:{callbacks:{label:ctx=>{const v=ctx.raw;if(v===0&&ctx.datasetIndex===1)return'Pas encore de donnees';
+      return ctx.dataset.label+': '+v.toLocaleString('fr-FR')+' €';}}}},
+  scales:{x:{grid:{display:false}},y:{grid:{color:'#EAF4F6'},beginAtZero:true,ticks:{callback:v=>(v/1000).toFixed(0)+'k €'}}}}});
+</script>
+</body>
+</html>

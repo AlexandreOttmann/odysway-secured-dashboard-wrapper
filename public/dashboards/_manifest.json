@@ -1,0 +1,37 @@
+[
+  {
+    "slug": "reservations-summary",
+    "title": "Reservations Summary",
+    "description": "Booking counts by status and destination — static snapshot, no PII",
+    "file": "reservations-summary.html",
+    "live": false
+  },
+  {
+    "slug": "live-reservations",
+    "title": "Live Reservations",
+    "description": "Real-time reservation data queried live from the sanitized replica",
+    "file": "live-reservations.html",
+    "live": true
+  },
+  {
+    "slug": "test dashboard",
+    "title": "Test new dashboard",
+    "description": "Real-time reservation data queried live from the sanitized replica",
+    "file": "Dashboard_AC_2026.html",
+    "live": true
+  },
+  {
+    "slug": "test Audit_catalogue_Odysway",
+    "title": "Test new dashboard",
+    "description": "Real-time reservation data queried live from the sanitized replica",
+    "file": "Audit_catalogue_Odysway.html",
+    "live": true
+  },
+  {
+    "slug": "test",
+    "title": "Test Table",
+    "description": "Live view of the test table — id and created_at",
+    "file": "test.html",
+    "live": true
+  }
+]

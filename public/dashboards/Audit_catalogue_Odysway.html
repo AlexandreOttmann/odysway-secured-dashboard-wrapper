@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Audit catalogue Odysway — Process Production</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bleu: #2B4C52; --terra: #DB6644; --teal: #237C8C; --teal-light: #9CC5CC;
+  --teal-bg: #EAF4F6; --ocre: #F0B348; --vert: #2D5843; --sage: #7D9676;
+  --saumon: #EB9A82; --red: #C0392B; --bg: #FAFAF7; --card: #FFFFFF;
+  --border: #E5E5E0; --muted: #6B7280;
+}
+* { box-sizing: border-box; }
+body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--bleu); margin: 0; padding: 0; line-height: 1.5; }
+.container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+/* Header */
+.header-bar { border-bottom: 2px solid var(--bleu); padding-bottom: 14px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+.header-bar h1 { font-size: 26px; margin: 0 0 4px 0; color: var(--bleu); font-weight: 700; }
+.header-bar .subtitle { color: var(--muted); font-size: 13px; margin: 0; }
+
+/* Period selector */
+.period-selector { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
+.period-selector .label { padding: 0 10px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+.period-btn { border: none; background: transparent; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 500; color: var(--bleu); transition: all 0.15s; }
+.period-btn:hover { background: var(--teal-bg); }
+.period-btn.active { background: var(--bleu); color: white; }
+
+h2 { font-size: 18px; margin: 28px 0 14px 0; color: var(--bleu); font-weight: 700; padding-bottom: 6px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+h2 .period-tag { font-size: 12px; background: var(--teal-bg); color: var(--teal); padding: 3px 10px; border-radius: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+h3 { font-size: 13px; margin: 0 0 10px 0; color: var(--teal); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.block-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); font-weight: 700; margin: 16px 0 10px 0; padding-bottom: 6px; border-bottom: 1px dashed var(--border); }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+.kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.kpi-value { font-size: 24px; font-weight: 700; color: var(--bleu); line-height: 1.1; }
+.kpi-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.kpi-value.coral { color: var(--terra); }
+.kpi-value.vert { color: var(--vert); }
+.kpi-value.red { color: var(--red); }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+
+/* Distribution */
+.distrib-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
+.distrib-card { background: var(--card); border: 2px solid transparent; border-radius: 10px; padding: 14px; text-align: center; cursor: pointer; transition: all 0.15s; }
+.distrib-card.active { box-shadow: 0 4px 12px rgba(0,0,0,0.12); transform: translateY(-2px); }
+.distrib-card.hit { border-color: var(--vert); background: #E8F1E7; }
+.distrib-card.hit.active { background: #D4E6D2; }
+.distrib-card.watch { border-color: var(--ocre); background: #FFF6E5; }
+.distrib-card.watch.active { background: #FFEDC8; }
+.distrib-card.fix { border-color: var(--teal); background: #EAF4F6; }
+.distrib-card.fix.active { background: #C5E1E6; }
+.distrib-card.kill { border-color: var(--red); background: #FADBD7; }
+.distrib-card.kill.active { background: #F5C5BF; }
+.distrib-card.pilote { border-color: #B0B7BC; background: #F0F3F5; }
+.distrib-card.pilote.active { background: #DFE5E9; }
+.distrib-card .count { font-size: 28px; font-weight: 700; line-height: 1; }
+.distrib-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-top: 4px; }
+.distrib-card .desc { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* Seuils */
+.seuils-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+.seuil-input { display: flex; flex-direction: column; gap: 4px; }
+.seuil-input label { font-size: 12px; color: var(--muted); font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.seuil-input input { background: #FFF9DB; border: 1.5px solid var(--ocre); border-radius: 6px; padding: 8px 12px; font-family: inherit; font-size: 14px; font-weight: 600; color: var(--bleu); width: 100%; }
+.seuil-input input:focus { outline: none; border-color: var(--terra); }
+
+/* Tooltips */
+.info-icon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: var(--teal-light); color: white; font-size: 10px; font-weight: 700; cursor: help; position: relative; font-family: 'DM Sans', system-ui; }
+.info-icon:hover { background: var(--teal); }
+.info-icon::before { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--bleu); color: white; font-weight: 400; font-size: 12px; padding: 8px 12px; border-radius: 6px; white-space: normal; width: 280px; line-height: 1.45; text-align: left; text-transform: none; letter-spacing: 0; opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 50; box-shadow: 0 4px 16px rgba(0,0,0,0.18); }
+.info-icon::after { content: ''; position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--bleu); opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 50; }
+.info-icon:hover::before, .info-icon:hover::after { opacity: 1; }
+
+/* Table */
+.scorecard-controls { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+.search-input { flex: 1; min-width: 220px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 6px; font-family: inherit; font-size: 13px; }
+.search-input:focus { outline: none; border-color: var(--teal); }
+.btn-reset { padding: 8px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; font-family: inherit; font-size: 13px; cursor: pointer; color: var(--bleu); }
+.btn-reset:hover { background: var(--teal-bg); }
+
+.table-wrap { max-height: 600px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: white; }
+table.scorecard { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.scorecard thead th { background: var(--bleu); color: white; padding: 10px 10px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; user-select: none; border-right: 1px solid rgba(255,255,255,0.1); position: sticky; top: 0; z-index: 5; }
+table.scorecard thead th:hover { background: #1e3a3f; }
+.sort-arrow { opacity: 0.5; margin-left: 2px; font-size: 10px; }
+table.scorecard tbody td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+table.scorecard tbody tr:hover { background: var(--teal-bg); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.titre-cell { max-width: 320px; }
+.titre-cell .titre { font-weight: 500; color: var(--bleu); }
+.titre-cell .slug { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.statut { display: inline-block; padding: 3px 9px; border-radius: 20px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+.statut.HIT { background: #C8E6C9; color: #1B5E20; }
+.statut.WATCH { background: #FFF3C4; color: #8D6E00; }
+.statut.FIX { background: #C5E1E6; color: #1B4D5A; }
+.statut.KILL { background: #FFCDD2; color: #B71C1C; }
+.statut.PILOTE { background: #ECEFF1; color: #455A64; }
+.trend { font-size: 14px; font-weight: 700; }
+.trend.up { color: var(--vert); }
+.trend.down { color: var(--red); }
+.trend.flat { color: var(--muted); }
+
+.chart-container { position: relative; height: 320px; }
+.info-box { background: var(--teal-bg); border-left: 4px solid var(--teal); padding: 10px 14px; border-radius: 4px; margin: 12px 0 0 0; font-size: 12px; color: var(--bleu); line-height: 1.5; }
+.info-box strong { color: var(--terra); }
+
+.catalogue-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 4px 14px; font-size: 12px; color: var(--bleu); }
+.catalogue-list .item { padding: 3px 0; display: flex; gap: 8px; }
+.catalogue-list .num-badge { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 24px; }
+
+/* Meta section */
+.meta-highlight { background: linear-gradient(135deg, #1877F2 0%, #E4405F 100%); color: white; padding: 20px 24px; border-radius: 10px; margin-bottom: 16px; }
+.meta-highlight h3 { color: white; margin: 0 0 8px 0; font-size: 14px; opacity: 0.9; }
+.meta-highlight .warning-text { font-size: 15px; font-weight: 600; line-height: 1.5; }
+
+@media (max-width: 900px) {
+  .two-col { grid-template-columns: 1fr; }
+  .distrib-grid, .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header-bar">
+  <div>
+    <h1>Audit catalogue Odysway — Process Production</h1>
+    <p class="subtitle">Analyse leads, conversions, marge et UTM Meta · Classification Hit / Watch / Kill / Pilote.</p>
+  </div>
+  <div class="period-selector" id="period-selector">
+    <span class="label">Période</span>
+    <button class="period-btn active" data-p="2025">2025</button>
+    <button class="period-btn" data-p="2026">2026 YTD</button>
+    <button class="period-btn" data-p="rolling">12 mois glissants</button>
+    <button class="period-btn" data-p="all">Cumulé</button>
+  </div>
+</div>
+
+<!-- Bloc Performance commerciale -->
+<div class="block-title">Performance commerciale <span id="period-desc" style="color: var(--teal); font-weight: 600;"></span></div>
+<div class="kpi-grid" id="kpi-perf"></div>
+
+<!-- Bloc État catalogue -->
+<div class="block-title" style="margin-top: 20px;">État du catalogue</div>
+<div class="kpi-grid" id="kpi-catalog"></div>
+
+<h2>Seuils de classification <span style="font-size: 12px; color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0;">(éditables, les chiffres ci-dessus se recalculent automatiquement)</span></h2>
+<div class="card">
+  <div class="seuils-grid" id="seuils-grid"></div>
+  <div class="info-box">Règles appliquées en cascade : 1) Moins de leads que le seuil d'exposition → PILOTE · 2) Zéro conversion sur la période malgré exposition → KILL · 3) Au-dessus des seuils HIT (conv. + marge) → HIT · 4) Sous les seuils KILL (conv. + marge) → KILL · 5) Sinon → WATCH.</div>
+</div>
+
+<h2>Classification du catalogue <span class="period-tag" id="tag-distrib"></span></h2>
+<div class="distrib-grid" id="distrib-grid"></div>
+
+<div class="two-col">
+  <div class="card">
+    <h3>Top 10 voyages par marge</h3>
+    <div class="chart-container"><canvas id="chart-top10"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Répartition de la marge par statut</h3>
+    <div class="chart-container"><canvas id="chart-statut-marge"></canvas></div>
+  </div>
+</div>
+
+<h2>Scorecard voyages <span class="period-tag" id="tag-table"></span></h2>
+<div class="card" style="padding: 14px;">
+  <div class="scorecard-controls">
+    <input type="text" class="search-input" id="search" placeholder="Rechercher un voyage (titre ou slug)...">
+    <button class="btn-reset" onclick="resetFilters()">Réinitialiser</button>
+    <span id="filter-info" style="color: var(--muted); font-size: 12px;"></span>
+  </div>
+  <div class="table-wrap">
+    <table class="scorecard" id="scorecard-table">
+      <thead>
+        <tr>
+          <th data-sort="rank" style="width:36px;">#</th>
+          <th data-sort="titre" style="width:30%;">Voyage<span class="sort-arrow">↕</span></th>
+          <th data-sort="leads_p" class="num">Leads<span class="sort-arrow">↕</span></th>
+          <th data-sort="conv_p" class="num">Conv.<span class="sort-arrow">↕</span></th>
+          <th data-sort="taux_p" class="num">Taux<span class="sort-arrow">↕</span></th>
+          <th data-sort="marge_25" class="num">Marge 2025<span class="sort-arrow">↕</span></th>
+          <th data-sort="marge_26" class="num">Marge 2026 YTD<span class="sort-arrow">↕</span></th>
+          <th data-sort="marge_par_pax" class="num">Marge/pax<span class="sort-arrow">↕</span></th>
+          <th data-sort="statut" style="width:80px;">Statut<span class="sort-arrow">↕</span></th>
+          <th style="width:180px;" title="Diagnostic automatique tiré des Raisons de Perte dans AC. S'affiche pour les voyages en FIX ou avec ≥ 20 pertes.">Diagnostic ⓘ</th>
+        </tr>
+      </thead>
+      <tbody id="scorecard-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<h2>ROAS Meta par voyage <span class="period-tag" id="tag-meta-roas"></span></h2>
+<p style="margin: -4px 0 12px 0; font-size: 12px; color: var(--muted); font-style: italic;">Dépense Meta réelle sur la période (export Meta Ads Manager, découpage mensuel). Voyages partenaires exclus.</p>
+
+<div class="card" style="margin-bottom: 18px; background: #FFF9DB; border-color: var(--ocre);">
+  <h3 style="margin-bottom: 8px;" title="Quel pourcentage des conversions d'un voyage attribuez-vous à Meta ? 100% = tous les clients seraient venus grâce aux Ads (optimiste). 50% = la moitié serait venue sans Meta. 70% est une hypothèse réaliste vu que 80-85% des visites de page voyage viennent de Meta.">Hypothèse d'attribution Meta ⓘ</h3>
+  <div style="display: flex; gap: 18px; align-items: center; margin-top: 6px;">
+    <div style="flex: 1;">
+      <input type="range" min="10" max="100" step="5" value="70" id="attribution-slider" oninput="setMetaAttribution(this.value)" style="width: 100%; accent-color: var(--terra);">
+      <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 2px;">
+        <span>10% (très conservateur)</span><span>50%</span><span>100% (optimiste)</span>
+      </div>
+    </div>
+    <div style="font-size: 26px; font-weight: 700; color: var(--terra); min-width: 80px; text-align: right;" id="attribution-value">70%</div>
+  </div>
+  <p style="margin: 10px 0 0 0; font-size: 12px; color: var(--muted);">Marge attribuée à Meta = marge totale du voyage × ce pourcentage. Plus le curseur est bas, plus l'analyse est conservatrice.</p>
+</div>
+
+<div class="kpi-grid" id="meta-global-kpis" style="margin-bottom: 20px;"></div>
+
+<div class="two-col">
+  <div class="card">
+    <h3>Bénéfice net par voyage</h3>
+    <p style="margin: 0 0 8px 0; font-size: 12px; color: var(--muted);">Marge attribuée à Meta <em>moins</em> dépense Meta. Barre verte = Meta a fait gagner de l'argent. Barre rouge = Meta a coûté plus cher que ce qu'il a rapporté.</p>
+    <div class="chart-container" style="height: 420px;"><canvas id="chart-benefnet"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Top ROAS ajustés</h3>
+    <p style="margin: 0 0 8px 0; font-size: 12px; color: var(--muted);">Voyages avec le meilleur retour sur investissement après ajustement d'attribution.</p>
+    <div class="chart-container" style="height: 420px;"><canvas id="chart-top-roas"></canvas></div>
+  </div>
+</div>
+
+<div class="card" style="padding: 18px 22px; margin-bottom: 20px; border-left: 4px solid var(--terra);">
+  <h3 style="margin-bottom: 10px; color: var(--bleu);">Ma lecture des chiffres</h3>
+  <div id="meta-narrative" style="font-size: 14px; line-height: 1.65; color: var(--bleu);"></div>
+</div>
+
+<div class="card" style="padding: 14px; margin-bottom: 20px;">
+  <h3 style="margin-bottom: 10px;">Détail par voyage</h3>
+  <div class="table-wrap">
+    <table class="scorecard" id="meta-roas-table">
+      <thead>
+        <tr>
+          <th data-sort="voyage">Voyage<span class="sort-arrow">↕</span></th>
+          <th data-sort="spend" class="num" title="Budget dépensé sur Meta Ads Manager sur toutes les campagnes liées à ce voyage (source : export Meta).">Dépense Meta ⓘ<span class="sort-arrow">↕</span></th>
+          <th data-sort="impressions" class="num">Impressions<span class="sort-arrow">↕</span></th>
+          <th data-sort="conv" class="num" title="Conversions totales du voyage dans AC (toutes sources confondues).">Conv ⓘ<span class="sort-arrow">↕</span></th>
+          <th data-sort="marge_voyage" class="num" title="Marge totale générée par le voyage, toutes sources confondues (SEO, direct, Meta, bouche à oreille). Source : AC, pipeline Voyageurs.">Marge voyage ⓘ<span class="sort-arrow">↕</span></th>
+          <th data-sort="marge_attribuee" class="num" title="Part de la marge que l'on attribue à Meta (= Marge voyage × % d'attribution choisi plus haut). Réponse à : combien Meta a vraiment rapporté ?">Marge attribuée Meta ⓘ<span class="sort-arrow">↕</span></th>
+          <th data-sort="benef_net" class="num" title="Marge attribuée à Meta MOINS dépense Meta. C'est le vrai 'il reste quoi après la pub'. Positif = Meta a fait gagner de l'argent. Négatif = Meta a coûté plus qu'il n'a rapporté.">Bénéfice net ⓘ<span class="sort-arrow">↕</span></th>
+          <th data-sort="roas_ajuste" class="num" title="Marge attribuée à Meta ÷ Dépense Meta. Un ROAS de 2× = pour 1€ dépensé, vous récupérez 2€ de marge. En-dessous de 1× = vous perdez de l'argent.">ROAS ajusté ⓘ<span class="sort-arrow">↕</span></th>
+          <th data-sort="verdict">Verdict<span class="sort-arrow">↕</span></th>
+        </tr>
+      </thead>
+      <tbody id="meta-roas-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<h2>Catalogue officiel du site (79 voyages)</h2>
+<div class="card">
+  <p style="margin: 0 0 10px 0; color: var(--muted); font-size: 12px;">Extraction de odysway.com/voyages. Voyage affiché mais absent du scorecard = aucun lead récent. Voyage classé KILL mais toujours affiché = à sortir du catalogue.</p>
+  <div class="catalogue-list" id="catalogue-list"></div>
+</div>
+
+<div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px;">
+  Données AC (Prospects + Voyageurs), hors pipeline Sur-mesure. Marge : uniquement dossiers Voyageurs (toutes sources confondues). Meta : export Meta Ads Manager croisé au voyage par nom de campagne. Voyages partenaires (Sikkim, Norvège photographe) exclus du ROAS moyen car les conversions viennent des guides et non des Ads. Généré le 12/05/2026.
+</div>
+
+</div>
+
+<script>
+const DATA = {"generated_at": "2026-05-11", "rolling_start": "2025-05-11", "global_stats": {"2025": {"leads": 2080, "convertis": 449, "marge": 249058.18000000002, "pax": 614, "meta_leads": 0, "meta_convertis": 0, "meta_marge": 0.0}, "2026": {"leads": 705, "convertis": 177, "marge": 78614.39, "pax": 220, "meta_leads": 0, "meta_convertis": 0, "meta_marge": 0.0}, "rolling": {"leads": 1933, "convertis": 472, "marge": 240339.03999999998, "pax": 620, "meta_leads": 0, "meta_convertis": 0, "meta_marge": 0.0}, "all": {"leads": 2785, "convertis": 626, "marge": 327672.56999999995, "pax": 834, "meta_leads": 0, "meta_convertis": 0, "meta_marge": 0.0}}, "voyages": [{"titre": "Voyagez en terre chamane en Mongolie", "slug": "voyage-chamane-mongolie", "periods": {"2025": {"leads": 157, "convertis": 59, "taux": 0.3758, "marge": 42500.0, "pax": 71, "marge_par_pax": 599.0, "marge_par_dossier": 720.0}, "2026": {"leads": 74, "convertis": 35, "taux": 0.473, "marge": 22258.0, "pax": 37, "marge_par_pax": 602.0, "marge_par_dossier": 636.0}, "rolling": {"leads": 167, "convertis": 65, "taux": 0.3892, "marge": 44233.0, "pax": 74, "marge_par_pax": 598.0, "marge_par_dossier": 681.0}, "all": {"leads": 231, "convertis": 94, "taux": 0.4069, "marge": 64758.0, "pax": 108, "marge_par_pax": 600.0, "marge_par_dossier": 689.0}}, "loss_reasons": {"total_lost": 129, "injoignable": 44, "prix": 9, "concurrence": 0, "programme": 2, "curieux": 18, "autre": 56}}, {"titre": "Trek chez l'habitant au Népal, au fil des villages Sherpas", "slug": "trek-chez-lhabitant-nepal", "periods": {"2025": {"leads": 141, "convertis": 56, "taux": 0.3972, "marge": 47209.0, "pax": 72, "marge_par_pax": 656.0, "marge_par_dossier": 843.0}, "2026": {"leads": 65, "convertis": 21, "taux": 0.3231, "marge": 15143.0, "pax": 25, "marge_par_pax": 606.0, "marge_par_dossier": 721.0}, "rolling": {"leads": 152, "convertis": 53, "taux": 0.3487, "marge": 42504.0, "pax": 67, "marge_par_pax": 634.0, "marge_par_dossier": 802.0}, "all": {"leads": 206, "convertis": 77, "taux": 0.3738, "marge": 62352.0, "pax": 97, "marge_par_pax": 643.0, "marge_par_dossier": 810.0}}, "loss_reasons": {"total_lost": 125, "injoignable": 53, "prix": 7, "concurrence": 1, "programme": 3, "curieux": 23, "autre": 38}}, {"titre": "Pérou : immersion chamanique et rencontres quechuas", "slug": "voyage-chamanique-perou", "periods": {"2025": {"leads": 97, "convertis": 22, "taux": 0.2268, "marge": 14317.0, "pax": 26, "marge_par_pax": 551.0, "marge_par_dossier": 651.0}, "2026": {"leads": 80, "convertis": 17, "taux": 0.2125, "marge": 8504.0, "pax": 20, "marge_par_pax": 425.0, "marge_par_dossier": 500.0}, "rolling": {"leads": 166, "convertis": 38, "taux": 0.2289, "marge": 22121.0, "pax": 45, "marge_par_pax": 492.0, "marge_par_dossier": 582.0}, "all": {"leads": 177, "convertis": 39, "taux": 0.2203, "marge": 22821.0, "pax": 46, "marge_par_pax": 496.0, "marge_par_dossier": 585.0}}, "loss_reasons": {"total_lost": 125, "injoignable": 48, "prix": 12, "concurrence": 1, "programme": 7, "curieux": 14, "autre": 43}}, {"titre": "Séjour multi-activités en Laponie finlandaise", "slug": "voyage-hiver-laponie-finlande", "periods": {"2025": {"leads": 160, "convertis": 20, "taux": 0.125, "marge": 18377.0, "pax": 43, "marge_par_pax": 427.0, "marge_par_dossier": 919.0}, "2026": {"leads": 58, "convertis": 4, "taux": 0.069, "marge": 3753.0, "pax": 9, "marge_par_pax": 417.0, "marge_par_dossier": 938.0}, "rolling": {"leads": 200, "convertis": 22, "taux": 0.11, "marge": 20851.0, "pax": 49, "marge_par_pax": 426.0, "marge_par_dossier": 948.0}, "all": {"leads": 218, "convertis": 24, "taux": 0.1101, "marge": 22130.0, "pax": 52, "marge_par_pax": 426.0, "marge_par_dossier": 922.0}}, "loss_reasons": {"total_lost": 191, "injoignable": 82, "prix": 25, "concurrence": 6, "programme": 7, "curieux": 23, "autre": 48}}, {"titre": "Vis ma vie de berger dans les Pyrénées", "slug": "sejour-berger-bearn", "periods": {"2025": {"leads": 114, "convertis": 37, "taux": 0.3246, "marge": 13020.0, "pax": 53, "marge_par_pax": 246.0, "marge_par_dossier": 352.0}, "2026": {"leads": 60, "convertis": 12, "taux": 0.2, "marge": 4131.0, "pax": 18, "marge_par_pax": 229.0, "marge_par_dossier": 344.0}, "rolling": {"leads": 117, "convertis": 31, "taux": 0.265, "marge": 11468.0, "pax": 47, "marge_par_pax": 244.0, "marge_par_dossier": 370.0}, "all": {"leads": 174, "convertis": 49, "taux": 0.2816, "marge": 17151.0, "pax": 71, "marge_par_pax": 242.0, "marge_par_dossier": 350.0}}, "loss_reasons": {"total_lost": 108, "injoignable": 38, "prix": 10, "concurrence": 0, "programme": 5, "curieux": 17, "autre": 38}}, {"titre": "A la découverte du Népal : randonnées accessibles et immersion locale", "slug": "decouverte-nepal-trek-et-rencontres", "periods": {"2025": {"leads": 88, "convertis": 22, "taux": 0.25, "marge": 11256.0, "pax": 24, "marge_par_pax": 469.0, "marge_par_dossier": 512.0}, "2026": {"leads": 18, "convertis": 5, "taux": 0.2778, "marge": 2107.0, "pax": 6, "marge_par_pax": 351.0, "marge_par_dossier": 421.0}, "rolling": {"leads": 78, "convertis": 19, "taux": 0.2436, "marge": 9624.0, "pax": 22, "marge_par_pax": 437.0, "marge_par_dossier": 507.0}, "all": {"leads": 106, "convertis": 27, "taux": 0.2547, "marge": 13364.0, "pax": 30, "marge_par_pax": 445.0, "marge_par_dossier": 495.0}}, "loss_reasons": {"total_lost": 76, "injoignable": 32, "prix": 2, "concurrence": 0, "programme": 6, "curieux": 13, "autre": 23}}, {"titre": "Retraite Himalayenne : méditation et yoga au cœur du Sikkim", "slug": "retraite-yoga-sikkim-inde", "periods": {"2025": {"leads": 16, "convertis": 14, "taux": 0.875, "marge": 8773.0, "pax": 20, "marge_par_pax": 439.0, "marge_par_dossier": 627.0}, "2026": {"leads": 7, "convertis": 3, "taux": 0.4286, "marge": 1771.0, "pax": 3, "marge_par_pax": 590.0, "marge_par_dossier": 590.0}, "rolling": {"leads": 13, "convertis": 8, "taux": 0.6154, "marge": 5300.0, "pax": 11, "marge_par_pax": 482.0, "marge_par_dossier": 662.0}, "all": {"leads": 23, "convertis": 17, "taux": 0.7391, "marge": 10545.0, "pax": 23, "marge_par_pax": 458.0, "marge_par_dossier": 620.0}}, "loss_reasons": {"total_lost": 5, "injoignable": 2, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 3}}, {"titre": "Occupez-vous des animaux de la jungle au Costa Rica", "slug": "refuge-animaux-costa-rica", "periods": {"2025": {"leads": 55, "convertis": 10, "taux": 0.1818, "marge": 7566.0, "pax": 17, "marge_par_pax": 445.0, "marge_par_dossier": 757.0}, "2026": {"leads": 6, "convertis": 3, "taux": 0.5, "marge": 954.0, "pax": 3, "marge_par_pax": 318.0, "marge_par_dossier": 318.0}, "rolling": {"leads": 18, "convertis": 8, "taux": 0.4444, "marge": 4475.0, "pax": 12, "marge_par_pax": 373.0, "marge_par_dossier": 559.0}, "all": {"leads": 61, "convertis": 13, "taux": 0.2131, "marge": 8521.0, "pax": 20, "marge_par_pax": 426.0, "marge_par_dossier": 655.0}}, "loss_reasons": {"total_lost": 50, "injoignable": 26, "prix": 4, "concurrence": 0, "programme": 0, "curieux": 5, "autre": 15}}, {"titre": "Immersion au Japon : entre traditions, montagnes et rencontres", "slug": "voyage-immersion-japon", "periods": {"2025": {"leads": 20, "convertis": 5, "taux": 0.25, "marge": 5710.0, "pax": 9, "marge_par_pax": 634.0, "marge_par_dossier": 1142.0}, "2026": {"leads": 28, "convertis": 1, "taux": 0.0357, "marge": 2040.0, "pax": 3, "marge_par_pax": 680.0, "marge_par_dossier": 2040.0}, "rolling": {"leads": 48, "convertis": 6, "taux": 0.125, "marge": 7750.0, "pax": 12, "marge_par_pax": 646.0, "marge_par_dossier": 1292.0}, "all": {"leads": 48, "convertis": 6, "taux": 0.125, "marge": 7750.0, "pax": 12, "marge_par_pax": 646.0, "marge_par_dossier": 1292.0}}, "loss_reasons": {"total_lost": 37, "injoignable": 16, "prix": 5, "concurrence": 2, "programme": 2, "curieux": 6, "autre": 6}}, {"titre": "Stage boxe thaï en immersion dans le nord de la Thaïlande", "slug": "stage-boxe-thai-nord-thailande", "periods": {"2025": {"leads": 329, "convertis": 10, "taux": 0.0304, "marge": 5024.0, "pax": 14, "marge_par_pax": 359.0, "marge_par_dossier": 502.0}, "2026": {"leads": 28, "convertis": 3, "taux": 0.1071, "marge": 1523.0, "pax": 4, "marge_par_pax": 381.0, "marge_par_dossier": 508.0}, "rolling": {"leads": 159, "convertis": 6, "taux": 0.0377, "marge": 3035.0, "pax": 7, "marge_par_pax": 434.0, "marge_par_dossier": 506.0}, "all": {"leads": 357, "convertis": 13, "taux": 0.0364, "marge": 6547.0, "pax": 18, "marge_par_pax": 364.0, "marge_par_dossier": 504.0}}, "loss_reasons": {"total_lost": 333, "injoignable": 170, "prix": 14, "concurrence": 1, "programme": 8, "curieux": 61, "autre": 79}}, {"titre": "Trek chez l'habitant sur l'île de Santo Antão au Cap-Vert", "slug": "trek-chez-lhabitant-cap-vert", "periods": {"2025": {"leads": 42, "convertis": 6, "taux": 0.1429, "marge": 5760.0, "pax": 11, "marge_par_pax": 524.0, "marge_par_dossier": 960.0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 39, "convertis": 4, "taux": 0.1026, "marge": 2200.0, "pax": 5, "marge_par_pax": 440.0, "marge_par_dossier": 550.0}, "all": {"leads": 43, "convertis": 6, "taux": 0.1395, "marge": 5760.0, "pax": 11, "marge_par_pax": 524.0, "marge_par_dossier": 960.0}}, "loss_reasons": {"total_lost": 37, "injoignable": 12, "prix": 6, "concurrence": 0, "programme": 2, "curieux": 5, "autre": 12}}, {"titre": "Séjour photographique en Ecosse avec Jean-Michel Lenoir", "slug": "ecosse-photo-nature", "periods": {"2025": {"leads": 14, "convertis": 14, "taux": 1.0, "marge": 4884.0, "pax": 16, "marge_par_pax": 305.0, "marge_par_dossier": 349.0}, "2026": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 338.0, "pax": 1, "marge_par_pax": 338.0, "marge_par_dossier": 338.0}, "rolling": {"leads": 15, "convertis": 15, "taux": 1.0, "marge": 5222.0, "pax": 17, "marge_par_pax": 307.0, "marge_par_dossier": 348.0}, "all": {"leads": 15, "convertis": 15, "taux": 1.0, "marge": 5222.0, "pax": 17, "marge_par_pax": 307.0, "marge_par_dossier": 348.0}}, "loss_reasons": {}}, {"titre": "Le Vietnam du Nord au Sud, de la baie d’Halong au delta du Mékong", "slug": "voyage-immersif-vietnam", "periods": {"2025": {"leads": 70, "convertis": 11, "taux": 0.1571, "marge": 4207.0, "pax": 14, "marge_par_pax": 301.0, "marge_par_dossier": 382.0}, "2026": {"leads": 43, "convertis": 1, "taux": 0.0233, "marge": 294.0, "pax": 1, "marge_par_pax": 294.0, "marge_par_dossier": 294.0}, "rolling": {"leads": 92, "convertis": 8, "taux": 0.087, "marge": 3210.0, "pax": 11, "marge_par_pax": 292.0, "marge_par_dossier": 401.0}, "all": {"leads": 113, "convertis": 12, "taux": 0.1062, "marge": 4501.0, "pax": 15, "marge_par_pax": 300.0, "marge_par_dossier": 375.0}}, "loss_reasons": {"total_lost": 92, "injoignable": 33, "prix": 13, "concurrence": 6, "programme": 1, "curieux": 14, "autre": 25}}, {"titre": "Séjour photo sur la côte d'Argent portugaise", "slug": "portugal-photo-lenoir", "periods": {"2025": {"leads": 16, "convertis": 16, "taux": 1.0, "marge": 3892.0, "pax": 17, "marge_par_pax": 229.0, "marge_par_dossier": 243.0}, "2026": {"leads": 2, "convertis": 2, "taux": 1.0, "marge": 410.0, "pax": 2, "marge_par_pax": 205.0, "marge_par_dossier": 205.0}, "rolling": {"leads": 18, "convertis": 18, "taux": 1.0, "marge": 4302.0, "pax": 19, "marge_par_pax": 226.0, "marge_par_dossier": 239.0}, "all": {"leads": 18, "convertis": 18, "taux": 1.0, "marge": 4302.0, "pax": 19, "marge_par_pax": 226.0, "marge_par_dossier": 239.0}}, "loss_reasons": {}}, {"titre": "Découvrez l'art de la photo animalière dans le Jura", "slug": "decouvrez-photo-animaliere-jura", "periods": {"2025": {"leads": 16, "convertis": 12, "taux": 0.75, "marge": 2651.0, "pax": 13, "marge_par_pax": 204.0, "marge_par_dossier": 221.0}, "2026": {"leads": 6, "convertis": 5, "taux": 0.8333, "marge": 1248.0, "pax": 5, "marge_par_pax": 250.0, "marge_par_dossier": 250.0}, "rolling": {"leads": 16, "convertis": 14, "taux": 0.875, "marge": 3239.0, "pax": 15, "marge_par_pax": 216.0, "marge_par_dossier": 231.0}, "all": {"leads": 22, "convertis": 17, "taux": 0.7727, "marge": 3899.0, "pax": 18, "marge_par_pax": 217.0, "marge_par_dossier": 229.0}}, "loss_reasons": {"total_lost": 6, "injoignable": 2, "prix": 0, "concurrence": 0, "programme": 1, "curieux": 0, "autre": 3}}, {"titre": "Voyage au Rajasthan : éveil des sens au cœur de l'Inde", "slug": "voyage-immersif-rajasthan-inde", "periods": {"2025": {"leads": 6, "convertis": 4, "taux": 0.6667, "marge": 1877.0, "pax": 4, "marge_par_pax": 469.0, "marge_par_dossier": 469.0}, "2026": {"leads": 6, "convertis": 5, "taux": 0.8333, "marge": 1797.0, "pax": 5, "marge_par_pax": 359.0, "marge_par_dossier": 359.0}, "rolling": {"leads": 8, "convertis": 7, "taux": 0.875, "marge": 2581.0, "pax": 7, "marge_par_pax": 369.0, "marge_par_dossier": 369.0}, "all": {"leads": 12, "convertis": 9, "taux": 0.75, "marge": 3674.0, "pax": 9, "marge_par_pax": 408.0, "marge_par_dossier": 408.0}}, "loss_reasons": {"total_lost": 3, "injoignable": 1, "prix": 1, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Immersion culturelle et aventures en terres sauvages au kirghizistan", "slug": "immersion-steppes-kirghizistan", "periods": {"2025": {"leads": 5, "convertis": 1, "taux": 0.2, "marge": 3574.0, "pax": 7, "marge_par_pax": 511.0, "marge_par_dossier": 3574.0}, "2026": {"leads": 4, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 7, "convertis": 1, "taux": 0.1429, "marge": 3574.0, "pax": 7, "marge_par_pax": 511.0, "marge_par_dossier": 3574.0}, "all": {"leads": 9, "convertis": 1, "taux": 0.1111, "marge": 3574.0, "pax": 7, "marge_par_pax": 511.0, "marge_par_dossier": 3574.0}}, "loss_reasons": {"total_lost": 8, "injoignable": 3, "prix": 1, "concurrence": 0, "programme": 1, "curieux": 0, "autre": 3}}, {"titre": "Sur les Traces  des Oiseaux - Circuit  Ornithologique au Cœur du  Sénégal Oriental", "slug": "s%C3%A9n%C3%A9gal-photo-oiseaux", "periods": {"2025": {"leads": 7, "convertis": 7, "taux": 1.0, "marge": 3383.0, "pax": 10, "marge_par_pax": 338.0, "marge_par_dossier": 483.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 7, "convertis": 7, "taux": 1.0, "marge": 3383.0, "pax": 10, "marge_par_pax": 338.0, "marge_par_dossier": 483.0}, "all": {"leads": 7, "convertis": 7, "taux": 1.0, "marge": 3383.0, "pax": 10, "marge_par_pax": 338.0, "marge_par_dossier": 483.0}}, "loss_reasons": {}}, {"titre": "En immersion à Rishikesh en Inde avec Stéphanie Heuskin", "slug": "inde-stephanie-heuskin", "periods": {"2025": {"leads": 8, "convertis": 6, "taux": 0.75, "marge": 3373.0, "pax": 7, "marge_par_pax": 482.0, "marge_par_dossier": 562.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 8, "convertis": 6, "taux": 0.75, "marge": 3373.0, "pax": 7, "marge_par_pax": 482.0, "marge_par_dossier": 562.0}, "all": {"leads": 8, "convertis": 6, "taux": 0.75, "marge": 3373.0, "pax": 7, "marge_par_pax": 482.0, "marge_par_dossier": 562.0}}, "loss_reasons": {"total_lost": 2, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 2}}, {"titre": "En immersion dans les villages traditionnels du Kenya et safari dans le Masai Mara", "slug": "voyage-kenya-safari-immersion-communaute-locale", "periods": {"2025": {"leads": 7, "convertis": 4, "taux": 0.5714, "marge": 2705.0, "pax": 7, "marge_par_pax": 386.0, "marge_par_dossier": 676.0}, "2026": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 650.0, "pax": 1, "marge_par_pax": 650.0, "marge_par_dossier": 650.0}, "rolling": {"leads": 6, "convertis": 4, "taux": 0.6667, "marge": 3058.0, "pax": 7, "marge_par_pax": 437.0, "marge_par_dossier": 764.0}, "all": {"leads": 10, "convertis": 5, "taux": 0.5, "marge": 3355.0, "pax": 8, "marge_par_pax": 419.0, "marge_par_dossier": 671.0}}, "loss_reasons": {"total_lost": 4, "injoignable": 2, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 1}}, {"titre": "Dans la peau d’un Ranger : immersion au cœur d’une réserve en Namibie", "slug": "voyage-immersion-namibie", "periods": {"2025": {"leads": 19, "convertis": 6, "taux": 0.3158, "marge": 3130.0, "pax": 7, "marge_par_pax": 447.0, "marge_par_dossier": 522.0}, "2026": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 5, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 22, "convertis": 6, "taux": 0.2727, "marge": 3130.0, "pax": 7, "marge_par_pax": 447.0, "marge_par_dossier": 522.0}}, "loss_reasons": {"total_lost": 16, "injoignable": 7, "prix": 2, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 6}}, {"titre": "Séjour photographique à Yellowstone", "slug": "yellowstone-photo-hiver", "periods": {"2025": {"leads": 6, "convertis": 6, "taux": 1.0, "marge": 1903.0, "pax": 8, "marge_par_pax": 238.0, "marge_par_dossier": 317.0}, "2026": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 1140.0, "pax": 2, "marge_par_pax": 570.0, "marge_par_dossier": 1140.0}, "rolling": {"leads": 9, "convertis": 7, "taux": 0.7778, "marge": 3043.0, "pax": 10, "marge_par_pax": 304.0, "marge_par_dossier": 435.0}, "all": {"leads": 9, "convertis": 7, "taux": 0.7778, "marge": 3043.0, "pax": 10, "marge_par_pax": 304.0, "marge_par_dossier": 435.0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 1, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "Immersion brésilienne et survie dans la jungle amazonienne", "slug": "survie-jungle-amazonienne", "periods": {"2025": {"leads": 9, "convertis": 4, "taux": 0.4444, "marge": 2940.0, "pax": 6, "marge_par_pax": 490.0, "marge_par_dossier": 735.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 2, "convertis": 1, "taux": 0.5, "marge": 570.0, "pax": 1, "marge_par_pax": 570.0, "marge_par_dossier": 570.0}, "all": {"leads": 9, "convertis": 4, "taux": 0.4444, "marge": 2940.0, "pax": 6, "marge_par_pax": 490.0, "marge_par_dossier": 735.0}}, "loss_reasons": {"total_lost": 5, "injoignable": 2, "prix": 1, "concurrence": 0, "programme": 1, "curieux": 0, "autre": 1}}, {"titre": "À la rencontre des habitants de la route de la soie en Ouzbékistan", "slug": "route-soie-ouzbekistan", "periods": {"2025": {"leads": 12, "convertis": 3, "taux": 0.25, "marge": 1900.0, "pax": 4, "marge_par_pax": 475.0, "marge_par_dossier": 633.0}, "2026": {"leads": 2, "convertis": 2, "taux": 1.0, "marge": 829.0, "pax": 3, "marge_par_pax": 276.0, "marge_par_dossier": 414.0}, "rolling": {"leads": 5, "convertis": 5, "taux": 1.0, "marge": 2729.0, "pax": 7, "marge_par_pax": 390.0, "marge_par_dossier": 546.0}, "all": {"leads": 14, "convertis": 5, "taux": 0.3571, "marge": 2729.0, "pax": 7, "marge_par_pax": 390.0, "marge_par_dossier": 546.0}}, "loss_reasons": {"total_lost": 10, "injoignable": 3, "prix": 1, "concurrence": 0, "programme": 1, "curieux": 2, "autre": 3}}, {"titre": "Séjour au cœur d'un observatoire astronomique", "slug": "sejour-observatoire-astronomique", "periods": {"2025": {"leads": 48, "convertis": 11, "taux": 0.2292, "marge": 1761.0, "pax": 24, "marge_par_pax": 73.0, "marge_par_dossier": 160.0}, "2026": {"leads": 6, "convertis": 2, "taux": 0.3333, "marge": 750.0, "pax": 5, "marge_par_pax": 150.0, "marge_par_dossier": 375.0}, "rolling": {"leads": 27, "convertis": 8, "taux": 0.2963, "marge": 1758.0, "pax": 18, "marge_par_pax": 98.0, "marge_par_dossier": 220.0}, "all": {"leads": 54, "convertis": 13, "taux": 0.2407, "marge": 2511.0, "pax": 29, "marge_par_pax": 87.0, "marge_par_dossier": 193.0}}, "loss_reasons": {"total_lost": 40, "injoignable": 19, "prix": 3, "concurrence": 1, "programme": 3, "curieux": 3, "autre": 11}}, {"titre": "Trek et immersion chez l'habitant au Pérou", "slug": "voyage-perou-trek-immersion-chez-lhabitant", "periods": {"2025": {"leads": 16, "convertis": 7, "taux": 0.4375, "marge": 2283.0, "pax": 8, "marge_par_pax": 285.0, "marge_par_dossier": 326.0}, "2026": {"leads": 4, "convertis": 2, "taux": 0.5, "marge": 0.0, "pax": 3, "marge_par_pax": 0.0, "marge_par_dossier": 0.0}, "rolling": {"leads": 16, "convertis": 6, "taux": 0.375, "marge": 1749.0, "pax": 8, "marge_par_pax": 219.0, "marge_par_dossier": 291.0}, "all": {"leads": 20, "convertis": 9, "taux": 0.45, "marge": 2283.0, "pax": 11, "marge_par_pax": 208.0, "marge_par_dossier": 254.0}}, "loss_reasons": {"total_lost": 10, "injoignable": 6, "prix": 1, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 2}}, {"titre": "Louxor, Vallée des Rois et croisière intimiste sur le Nil en Égypte", "slug": "voyage-egypte-croisiere-nil", "periods": {"2025": {"leads": 6, "convertis": 4, "taux": 0.6667, "marge": 2247.0, "pax": 6, "marge_par_pax": 375.0, "marge_par_dossier": 562.0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 6, "convertis": 4, "taux": 0.6667, "marge": 2247.0, "pax": 6, "marge_par_pax": 375.0, "marge_par_dossier": 562.0}, "all": {"leads": 7, "convertis": 4, "taux": 0.5714, "marge": 2247.0, "pax": 6, "marge_par_pax": 375.0, "marge_par_dossier": 562.0}}, "loss_reasons": {"total_lost": 4, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 3}}, {"titre": "En immersion avec un photographe en Norvège", "slug": "norvege-gregory-gerault", "periods": {"2025": {"leads": 10, "convertis": 9, "taux": 0.9, "marge": 2213.0, "pax": 9, "marge_par_pax": 246.0, "marge_par_dossier": 246.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 10, "convertis": 9, "taux": 0.9, "marge": 2213.0, "pax": 9, "marge_par_pax": 246.0, "marge_par_dossier": 246.0}, "all": {"leads": 10, "convertis": 9, "taux": 0.9, "marge": 2213.0, "pax": 9, "marge_par_pax": 246.0, "marge_par_dossier": 246.0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Séjour photographique en Ecosse", "slug": "ecosse-photo-automne", "periods": {"2025": {"leads": 7, "convertis": 7, "taux": 1.0, "marge": 1993.0, "pax": 8, "marge_par_pax": 249.0, "marge_par_dossier": 285.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 7, "convertis": 7, "taux": 1.0, "marge": 1993.0, "pax": 8, "marge_par_pax": 249.0, "marge_par_dossier": 285.0}, "all": {"leads": 7, "convertis": 7, "taux": 1.0, "marge": 1993.0, "pax": 8, "marge_par_pax": 249.0, "marge_par_dossier": 285.0}}, "loss_reasons": {}}, {"titre": "Pura Vida au Costa Rica : aventure tropicale et immersion dans la communauté Bribri", "slug": "voyage-costa-rica-immersion-communauté-locale", "periods": {"2025": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 1970.0, "pax": 2, "marge_par_pax": 985.0, "marge_par_dossier": 1970.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 2, "convertis": 1, "taux": 0.5, "marge": 1970.0, "pax": 2, "marge_par_pax": 985.0, "marge_par_dossier": 1970.0}, "all": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 1970.0, "pax": 2, "marge_par_pax": 985.0, "marge_par_dossier": 1970.0}}, "loss_reasons": {"total_lost": 2, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Séjour photographique en Ecosse", "slug": "ecosse-photo-printemps", "periods": {"2025": {"leads": 7, "convertis": 7, "taux": 1.0, "marge": 1849.0, "pax": 7, "marge_par_pax": 264.0, "marge_par_dossier": 264.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 7, "convertis": 7, "taux": 1.0, "marge": 1849.0, "pax": 7, "marge_par_pax": 264.0, "marge_par_dossier": 264.0}, "all": {"leads": 7, "convertis": 7, "taux": 1.0, "marge": 1849.0, "pax": 7, "marge_par_pax": 264.0, "marge_par_dossier": 264.0}}, "loss_reasons": {}}, {"titre": "Séjour photographique au Canada avec Benoist Clouet", "slug": "sejour-photo-canada", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 5, "convertis": 5, "taux": 1.0, "marge": 1780.0, "pax": 5, "marge_par_pax": 356.0, "marge_par_dossier": 356.0}, "rolling": {"leads": 5, "convertis": 5, "taux": 1.0, "marge": 1780.0, "pax": 5, "marge_par_pax": 356.0, "marge_par_dossier": 356.0}, "all": {"leads": 5, "convertis": 5, "taux": 1.0, "marge": 1780.0, "pax": 5, "marge_par_pax": 356.0, "marge_par_dossier": 356.0}}, "loss_reasons": {}}, {"titre": "Immersion culturelle au coeur des traditions d’une famille balinaise", "slug": "voyage-immersion-culturelle-bali", "periods": {"2025": {"leads": 14, "convertis": 1, "taux": 0.0714, "marge": 1650.0, "pax": 3, "marge_par_pax": 550.0, "marge_par_dossier": 1650.0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 15, "convertis": 1, "taux": 0.0667, "marge": 1650.0, "pax": 3, "marge_par_pax": 550.0, "marge_par_dossier": 1650.0}}, "loss_reasons": {"total_lost": 14, "injoignable": 7, "prix": 1, "concurrence": 0, "programme": 2, "curieux": 0, "autre": 4}}, {"titre": "Séjour multiactivités dans les fjords canadiens", "slug": "hiver-canada-multi-activites", "periods": {"2025": {"leads": 6, "convertis": 1, "taux": 0.1667, "marge": 249.0, "pax": 1, "marge_par_pax": 249.0, "marge_par_dossier": 249.0}, "2026": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 1395.0, "pax": 4, "marge_par_pax": 349.0, "marge_par_dossier": 1395.0}, "rolling": {"leads": 7, "convertis": 2, "taux": 0.2857, "marge": 1644.0, "pax": 5, "marge_par_pax": 329.0, "marge_par_dossier": 822.0}, "all": {"leads": 7, "convertis": 2, "taux": 0.2857, "marge": 1644.0, "pax": 5, "marge_par_pax": 329.0, "marge_par_dossier": 822.0}}, "loss_reasons": {"total_lost": 5, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 3}}, {"titre": "Partagez le quotidien des nomades des steppes mongoles", "slug": "voyage-nomades-mongolie", "periods": {"2025": {"leads": 2, "convertis": 1, "taux": 0.5, "marge": 847.0, "pax": 2, "marge_par_pax": 424.0, "marge_par_dossier": 847.0}, "2026": {"leads": 2, "convertis": 1, "taux": 0.5, "marge": 790.0, "pax": 2, "marge_par_pax": 395.0, "marge_par_dossier": 790.0}, "rolling": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 790.0, "pax": 2, "marge_par_pax": 395.0, "marge_par_dossier": 790.0}, "all": {"leads": 4, "convertis": 2, "taux": 0.5, "marge": 1638.0, "pax": 4, "marge_par_pax": 409.0, "marge_par_dossier": 819.0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Açores : randonnées, volcans et baleines", "slug": "acores-volcans-dauphins-baleines", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 5, "convertis": 3, "taux": 0.6, "marge": 1470.0, "pax": 3, "marge_par_pax": 490.0, "marge_par_dossier": 490.0}, "rolling": {"leads": 5, "convertis": 3, "taux": 0.6, "marge": 1470.0, "pax": 3, "marge_par_pax": 490.0, "marge_par_dossier": 490.0}, "all": {"leads": 5, "convertis": 3, "taux": 0.6, "marge": 1470.0, "pax": 3, "marge_par_pax": 490.0, "marge_par_dossier": 490.0}}, "loss_reasons": {"total_lost": 2, "injoignable": 0, "prix": 1, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Voyage polaire en Laponie norvégienne : forêts enneigées et aurores boréales", "slug": "aurores-boreales-randonnees-norvege", "periods": {"2025": {"leads": 14, "convertis": 3, "taux": 0.2143, "marge": 1326.0, "pax": 5, "marge_par_pax": 265.0, "marge_par_dossier": 442.0}, "2026": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 14, "convertis": 3, "taux": 0.2143, "marge": 1326.0, "pax": 5, "marge_par_pax": 265.0, "marge_par_dossier": 442.0}, "all": {"leads": 17, "convertis": 3, "taux": 0.1765, "marge": 1326.0, "pax": 5, "marge_par_pax": 265.0, "marge_par_dossier": 442.0}}, "loss_reasons": {"total_lost": 13, "injoignable": 5, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 2, "autre": 6}}, {"titre": "Trek au Népal : Tour des Annapurnas et Lac Tilicho", "slug": "trek-tour-annapurna-nepal", "periods": {"2025": {"leads": 17, "convertis": 3, "taux": 0.1765, "marge": 1291.0, "pax": 3, "marge_par_pax": 430.0, "marge_par_dossier": 430.0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 17, "convertis": 3, "taux": 0.1765, "marge": 1291.0, "pax": 3, "marge_par_pax": 430.0, "marge_par_dossier": 430.0}, "all": {"leads": 18, "convertis": 3, "taux": 0.1667, "marge": 1291.0, "pax": 3, "marge_par_pax": 430.0, "marge_par_dossier": 430.0}}, "loss_reasons": {"total_lost": 15, "injoignable": 5, "prix": 0, "concurrence": 0, "programme": 1, "curieux": 4, "autre": 5}}, {"titre": "En immersion avec un photographe animalier dans les Vosges", "slug": "photographie-animaliere-vosges", "periods": {"2025": {"leads": 7, "convertis": 3, "taux": 0.4286, "marge": 786.0, "pax": 4, "marge_par_pax": 197.0, "marge_par_dossier": 262.0}, "2026": {"leads": 3, "convertis": 3, "taux": 1.0, "marge": 422.0, "pax": 3, "marge_par_pax": 141.0, "marge_par_dossier": 141.0}, "rolling": {"leads": 8, "convertis": 5, "taux": 0.625, "marge": 833.0, "pax": 5, "marge_par_pax": 167.0, "marge_par_dossier": 167.0}, "all": {"leads": 10, "convertis": 6, "taux": 0.6, "marge": 1208.0, "pax": 7, "marge_par_pax": 173.0, "marge_par_dossier": 201.0}}, "loss_reasons": {"total_lost": 4, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 3}}, {"titre": "Immersion au cœur d'un observatoire astronomique", "slug": "immersion-observatoire-astronomique", "periods": {"2025": {"leads": 8, "convertis": 5, "taux": 0.625, "marge": 1068.0, "pax": 6, "marge_par_pax": 178.0, "marge_par_dossier": 214.0}, "2026": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 5, "convertis": 2, "taux": 0.4, "marge": 535.0, "pax": 3, "marge_par_pax": 178.0, "marge_par_dossier": 267.0}, "all": {"leads": 11, "convertis": 5, "taux": 0.4545, "marge": 1068.0, "pax": 6, "marge_par_pax": 178.0, "marge_par_dossier": 214.0}}, "loss_reasons": {"total_lost": 3, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 2}}, {"titre": "Japon autrement : Voyagez de Kyoto à Tokyo, entre tradition et modernité", "slug": "voyage-immersion-culturelle-japon", "periods": {"2025": {"leads": 3, "convertis": 2, "taux": 0.6667, "marge": 1015.0, "pax": 2, "marge_par_pax": 507.0, "marge_par_dossier": 507.0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 4, "convertis": 2, "taux": 0.5, "marge": 1015.0, "pax": 2, "marge_par_pax": 507.0, "marge_par_dossier": 507.0}}, "loss_reasons": {"total_lost": 3, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 2}}, {"titre": "Initiez-vous au Kung Fu dans un temple Shaolin", "slug": "kung-fu-temple-shaolin-chine", "periods": {"2025": {"leads": 78, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 4, "convertis": 2, "taux": 0.5, "marge": 1014.0, "pax": 2, "marge_par_pax": 507.0, "marge_par_dossier": 507.0}, "rolling": {"leads": 38, "convertis": 2, "taux": 0.0526, "marge": 1014.0, "pax": 2, "marge_par_pax": 507.0, "marge_par_dossier": 507.0}, "all": {"leads": 82, "convertis": 2, "taux": 0.0244, "marge": 1014.0, "pax": 2, "marge_par_pax": 507.0, "marge_par_dossier": 507.0}}, "loss_reasons": {"total_lost": 79, "injoignable": 34, "prix": 5, "concurrence": 0, "programme": 1, "curieux": 18, "autre": 21}}, {"titre": "Immersion hivernale en terre béarnaise", "slug": "sejour-hiver-pyrenees", "periods": {"2025": {"leads": 5, "convertis": 3, "taux": 0.6, "marge": 979.0, "pax": 4, "marge_par_pax": 245.0, "marge_par_dossier": 326.0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 6, "convertis": 3, "taux": 0.5, "marge": 979.0, "pax": 4, "marge_par_pax": 245.0, "marge_par_dossier": 326.0}}, "loss_reasons": {"total_lost": 3, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 2}}, {"titre": "Voyagez comme un trappeur en Finlande", "slug": "voyage-trappeur-finlande", "periods": {"2025": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 929.0, "pax": 2, "marge_par_pax": 464.0, "marge_par_dossier": 929.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 929.0, "pax": 2, "marge_par_pax": 464.0, "marge_par_dossier": 929.0}}, "loss_reasons": {}}, {"titre": "Namibie sauvage : entre aventure et protection des animaux", "slug": "voyage-aventure-namibie", "periods": {"2025": {"leads": 8, "convertis": 2, "taux": 0.25, "marge": 920.0, "pax": 2, "marge_par_pax": 460.0, "marge_par_dossier": 460.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 8, "convertis": 2, "taux": 0.25, "marge": 920.0, "pax": 2, "marge_par_pax": 460.0, "marge_par_dossier": 460.0}}, "loss_reasons": {"total_lost": 6, "injoignable": 5, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Islande sauvage : Terre de feu et de glace", "slug": "islande-nature-aurores-boreales", "periods": {"2025": {"leads": 5, "convertis": 3, "taux": 0.6, "marge": 736.0, "pax": 4, "marge_par_pax": 184.0, "marge_par_dossier": 245.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 2, "convertis": 1, "taux": 0.5, "marge": 100.0, "pax": 2, "marge_par_pax": 50.0, "marge_par_dossier": 100.0}, "all": {"leads": 5, "convertis": 3, "taux": 0.6, "marge": 736.0, "pax": 4, "marge_par_pax": 184.0, "marge_par_dossier": 245.0}}, "loss_reasons": {"total_lost": 2, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "A cheval, à la rencontre des nomades en Mongolie", "slug": "voyage-cheval-mongolie", "periods": {"2025": {"leads": 10, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 2, "convertis": 2, "taux": 1.0, "marge": 623.0, "pax": 3, "marge_par_pax": 208.0, "marge_par_dossier": 312.0}, "rolling": {"leads": 8, "convertis": 2, "taux": 0.25, "marge": 623.0, "pax": 3, "marge_par_pax": 208.0, "marge_par_dossier": 312.0}, "all": {"leads": 12, "convertis": 2, "taux": 0.1667, "marge": 623.0, "pax": 3, "marge_par_pax": 208.0, "marge_par_dossier": 312.0}}, "loss_reasons": {"total_lost": 9, "injoignable": 4, "prix": 2, "concurrence": 0, "programme": 1, "curieux": 0, "autre": 2}}, {"titre": "Découverte du Pérou : Grands sites incas et immersion sur le lac Titicaca", "slug": "voyage-perou", "periods": {"2025": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 515.0, "pax": 1, "marge_par_pax": 515.0, "marge_par_dossier": 515.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 515.0, "pax": 1, "marge_par_pax": 515.0, "marge_par_dossier": 515.0}}, "loss_reasons": {"total_lost": 2, "injoignable": 0, "prix": 1, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 0}}, {"titre": "Voyage au Bénin, au cœur des villages et traditions", "slug": "benin-immersion-villages-traditions", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 509.0, "pax": 1, "marge_par_pax": 509.0, "marge_par_dossier": 509.0}, "rolling": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 509.0, "pax": 1, "marge_par_pax": 509.0, "marge_par_dossier": 509.0}, "all": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 509.0, "pax": 1, "marge_par_pax": 509.0, "marge_par_dossier": 509.0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 1, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "Aventure hivernale en Finlande entre nature, neige et activités locales", "slug": "finlande-hiver-nature-activites", "periods": {"2025": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 481.0, "pax": 1, "marge_par_pax": 481.0, "marge_par_dossier": 481.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 481.0, "pax": 1, "marge_par_pax": 481.0, "marge_par_dossier": 481.0}, "all": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 481.0, "pax": 1, "marge_par_pax": 481.0, "marge_par_dossier": 481.0}}, "loss_reasons": {"total_lost": 2, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 2}}, {"titre": "Pura Vida au Costa Rica : aventure tropicale et immersion dans la communauté Bribri", "slug": "voyage-costa-rica-immersion-communaut%25C3%25A9-locale", "periods": {"2025": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 479.0, "pax": 1, "marge_par_pax": 479.0, "marge_par_dossier": 479.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 479.0, "pax": 1, "marge_par_pax": 479.0, "marge_par_dossier": 479.0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Initiation à l'observation astronomique en Corse", "slug": "sejour-astronomie-corse", "periods": {"2025": {"leads": 10, "convertis": 2, "taux": 0.2, "marge": 400.0, "pax": 4, "marge_par_pax": 100.0, "marge_par_dossier": 200.0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 250.0, "pax": 1, "marge_par_pax": 250.0, "marge_par_dossier": 250.0}, "all": {"leads": 11, "convertis": 2, "taux": 0.1818, "marge": 400.0, "pax": 4, "marge_par_pax": 100.0, "marge_par_dossier": 200.0}}, "loss_reasons": {"total_lost": 9, "injoignable": 4, "prix": 0, "concurrence": 0, "programme": 1, "curieux": 3, "autre": 1}}, {"titre": "Nagez avec les dauphins de la mer Rouge en Egypte aux côtés d'une éthologue", "slug": "voyage-dauphins-egypte", "periods": {"2025": {"leads": 7, "convertis": 1, "taux": 0.1429, "marge": 394.0, "pax": 1, "marge_par_pax": 394.0, "marge_par_dossier": 394.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 5, "convertis": 1, "taux": 0.2, "marge": 394.0, "pax": 1, "marge_par_pax": 394.0, "marge_par_dossier": 394.0}, "all": {"leads": 7, "convertis": 1, "taux": 0.1429, "marge": 394.0, "pax": 1, "marge_par_pax": 394.0, "marge_par_dossier": 394.0}}, "loss_reasons": {"total_lost": 6, "injoignable": 0, "prix": 1, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 5}}, {"titre": "Finlande sauvage entre canoë, forêt boréale et nuits étoilées", "slug": "reconnexion-nature-finlande", "periods": {"2025": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 367.0, "pax": 1, "marge_par_pax": 367.0, "marge_par_dossier": 367.0}, "rolling": {"leads": 2, "convertis": 1, "taux": 0.5, "marge": 367.0, "pax": 1, "marge_par_pax": 367.0, "marge_par_dossier": 367.0}, "all": {"leads": 3, "convertis": 1, "taux": 0.3333, "marge": 367.0, "pax": 1, "marge_par_pax": 367.0, "marge_par_dossier": 367.0}}, "loss_reasons": {"total_lost": 2, "injoignable": 2, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "Initiation au bivouac en montagne dans les Pyrénées", "slug": "bivouac-montagne-pyrenees", "periods": {"2025": {"leads": 5, "convertis": 3, "taux": 0.6, "marge": 63.0, "pax": 3, "marge_par_pax": 21.0, "marge_par_dossier": 21.0}, "2026": {"leads": 2, "convertis": 2, "taux": 1.0, "marge": 208.0, "pax": 2, "marge_par_pax": 104.0, "marge_par_dossier": 104.0}, "rolling": {"leads": 5, "convertis": 4, "taux": 0.8, "marge": 231.0, "pax": 4, "marge_par_pax": 58.0, "marge_par_dossier": 58.0}, "all": {"leads": 7, "convertis": 5, "taux": 0.7143, "marge": 271.0, "pax": 5, "marge_par_pax": 54.0, "marge_par_dossier": 54.0}}, "loss_reasons": {"total_lost": 2, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Vols Paris-Chiang Maï", "slug": "vols-thailande-avril", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 134.0, "pax": 1, "marge_par_pax": 134.0, "marge_par_dossier": 134.0}, "rolling": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 134.0, "pax": 1, "marge_par_pax": 134.0, "marge_par_dossier": 134.0}, "all": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 134.0, "pax": 1, "marge_par_pax": 134.0, "marge_par_dossier": 134.0}}, "loss_reasons": {}}, {"titre": "Bali Bike Tour", "slug": "bali-bike-tour", "periods": {"2025": {"leads": 2, "convertis": 2, "taux": 1.0, "marge": 122.0, "pax": 2, "marge_par_pax": 61.0, "marge_par_dossier": 61.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 2, "convertis": 2, "taux": 1.0, "marge": 122.0, "pax": 2, "marge_par_pax": 61.0, "marge_par_dossier": 61.0}, "all": {"leads": 2, "convertis": 2, "taux": 1.0, "marge": 122.0, "pax": 2, "marge_par_pax": 61.0, "marge_par_dossier": 61.0}}, "loss_reasons": {}}, {"titre": "Séjour multi-activités en famille dans les Ecrins", "slug": "sejour-multiactivites-famille-ecrins", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 112.0, "pax": 4, "marge_par_pax": 28.0, "marge_par_dossier": 112.0}, "rolling": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 112.0, "pax": 4, "marge_par_pax": 28.0, "marge_par_dossier": 112.0}, "all": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 112.0, "pax": 4, "marge_par_pax": 28.0, "marge_par_dossier": 112.0}}, "loss_reasons": {}}, {"titre": "Bali Bike Tour", "slug": "Bali-bike-tour", "periods": {"2025": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 0.0, "pax": 1, "marge_par_pax": 0.0, "marge_par_dossier": 0.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 0.0, "pax": 1, "marge_par_pax": 0.0, "marge_par_dossier": 0.0}, "all": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 0.0, "pax": 1, "marge_par_pax": 0.0, "marge_par_dossier": 0.0}}, "loss_reasons": {}}, {"titre": "Trek immersif à Sao Miguel, au cœur des Açores", "slug": "acores-sao-miguel-trek-immersion", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 0}}, {"titre": "Immersion nomade dans le Sud de l’Algérie avec les Touaregs", "slug": "algerie-sud-immersion-touaregs", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {}}, {"titre": "Exploration d'Alger et immersion avec les Touaregs dans le Sud de l'Algérie", "slug": "algerie-sud-touaregs", "periods": {"2025": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 2, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 2}}, {"titre": "L’appel des Açores entre volcans, dauphins, baleines et cachalots", "slug": "açores-volcans-dauphins-baleines", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "Bolivie : lac Titicaca, désert de sel et rencontres hors des sentiers battus", "slug": "bolivie-sud-lipez-salar-titicaca", "periods": {"2025": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 3, "injoignable": 1, "prix": 1, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Immersion brésilienne et survie dans la jungle amazonienne", "slug": "bresil-amazonie-immersion-jungle", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {}}, {"titre": "Immersion sauvage en Colombie : Du triangle du café aux baleines du Chocó", "slug": "colombie-immersion-triangle-du-cafe-choco", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 1, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "Voyage au Costa Rica : volcans, jungle et douceur de vivre", "slug": "costa-rica-petit-groupe-volcans-jungle", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 4, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 5, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 5, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 3, "injoignable": 0, "prix": 0, "concurrence": 2, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Au fil du Rajasthan : découverte et immersion chez les Bishnoïs", "slug": "decouverte-merveilles-rajasthan-bishnoi", "periods": {"2025": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 3, "injoignable": 2, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Cap-Vert en immersion : partagez le quotidien des habitants de Santiago", "slug": "immersion-culturelle-cap-vert", "periods": {"2025": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 2, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Bénin, rencontres et traditions au pays vodoun", "slug": "immersion-culturelle-sud-benin", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "Au cœur du Népal entre randonnées et immersion dans un monastère", "slug": "immersion-ecole-bouddhiste-nepal", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 0}}, {"titre": "Vivez comme un nomade du Sahara au Maroc", "slug": "immersion-nomade-sahara", "periods": {"2025": {"leads": 4, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 4, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 7, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 8, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 5, "injoignable": 5, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "Salvador : rencontres locales, villages, volcans et océan", "slug": "immersion-salvador-amerique-centrale", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 1, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "Retraite en Himalaya : yoga et méditation au Sikkim", "slug": "inde-arunachal-pradesh", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {}}, {"titre": "Laponie en famille : chiens de traîneaux, aurores boréales et immersion locale", "slug": "laponie-famille-aurores-boreales", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 7, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 8, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 8, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 8, "injoignable": 5, "prix": 0, "concurrence": 1, "programme": 0, "curieux": 0, "autre": 2}}, {"titre": "Immersion culturelle à travers les paysages spectaculaires de Madagascar", "slug": "madagascar-immersion-culturelle", "periods": {"2025": {"leads": 4, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 5, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 5, "injoignable": 2, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 3}}, {"titre": "Marche silencieuse et immersion nomade dans le sahara marocain", "slug": "marche-silencieuse-sahara", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "Trek Mongolie : Khangai, vallée d’Orkhon et immersion chez les nomades", "slug": "mongolie-trek-immersion-nomades", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 0}}, {"titre": "Au bout du monde en Patagonie, terre de feu et de glace", "slug": "patagonie-chili-argentine", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "Pérou : grands sites incas et immersion au lac Titicaca", "slug": "perou-grands-sites-incas-immersion-titicaca", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 4, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 4, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 4, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 4, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 1, "curieux": 2, "autre": 1}}, {"titre": "Stage de chant en Grèce", "slug": "stage-chant-grece", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 36, "convertis": 26, "taux": 0.7222, "marge": 0.0, "pax": 30, "marge_par_pax": 0.0, "marge_par_dossier": 0.0}, "rolling": {"leads": 36, "convertis": 26, "taux": 0.7222, "marge": 0.0, "pax": 30, "marge_par_pax": 0.0, "marge_par_dossier": 0.0}, "all": {"leads": 36, "convertis": 26, "taux": 0.7222, "marge": 0.0, "pax": 30, "marge_par_pax": 0.0, "marge_par_dossier": 0.0}}, "loss_reasons": {"total_lost": 7, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 7}}, {"titre": "Stage jiu-jitsu brésilien et immersion à Rio", "slug": "stage-jiu-jitsu-bresil-rio", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 4, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 4, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 4, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 4, "injoignable": 2, "prix": 0, "concurrence": 0, "programme": 1, "curieux": 0, "autre": 1}}, {"titre": "Sur les rives du Nil, du Caire à Abou Simbel", "slug": "sur-les-rives-du-nil-du-caire-a-abou-simbel", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 5, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 5, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 5, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {}}, {"titre": "Trek chez l'habitant au Ladakh : de village en monastère, au cœur de l'Himalaya", "slug": "trek-chez-lhabitant-ladakh", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Randonnées inoubliables à la découverte des joyaux naturels de Madère", "slug": "trek-madere-portugal", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 2, "injoignable": 0, "prix": 1, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Voyagez en terre chamane en Mongolie", "slug": "trek-nepal-camp-de-base-everest-himalaya", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {}}, {"titre": "A pied sur la route du thé au Sri Lanka, entre plantations, villages et plages", "slug": "trek-route-the-sri-lanka", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 6, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 6, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 6, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 6, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 1, "curieux": 0, "autre": 4}}, {"titre": "Vols secs Maroc", "slug": "vols-secs", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Trek immersif sur l’île de Sao Miguel aux Açores", "slug": "voyage-a%C3%A7ores-portugal", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 1, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "Pura Vida au Costa Rica : aventure tropicale et immersion dans la communauté Bribri", "slug": "voyage-costa-rica-immersion-communaut%C3%A9-locale", "periods": {"2025": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 0.0, "pax": 1, "marge_par_pax": 0.0, "marge_par_dossier": 0.0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 0.0, "pax": 1, "marge_par_pax": 0.0, "marge_par_dossier": 0.0}, "all": {"leads": 1, "convertis": 1, "taux": 1.0, "marge": 0.0, "pax": 1, "marge_par_pax": 0.0, "marge_par_dossier": 0.0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Observez dauphins et baleines sur les îles Canaries", "slug": "voyage-dauphins-baleines-espagne", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Au fil de l'eau, le Vietnam de la baie d'Halong au Mékong", "slug": "voyage-decouverte-vietnam", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {}}, {"titre": "Au fil de l'Egypte : Le Caire, Louxor et croisière intimiste sur le Nil", "slug": "voyage-egypte-caire-croisiere-nil", "periods": {"2025": {"leads": 10, "convertis": 1, "taux": 0.1, "marge": 0.0, "pax": 11, "marge_par_pax": 0.0, "marge_par_dossier": 0.0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 6, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 11, "convertis": 1, "taux": 0.0909, "marge": 0.0, "pax": 11, "marge_par_pax": 0.0, "marge_par_dossier": 0.0}}, "loss_reasons": {"total_lost": 10, "injoignable": 1, "prix": 3, "concurrence": 1, "programme": 1, "curieux": 0, "autre": 4}}, {"titre": "Thaïlande/ Namibie/ Vietnam", "slug": "voyage-elephants-thailande", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Voyagez hors des sentiers battus au Sri Lanka (été)", "slug": "voyage-ete-sri-lanka", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 0}}, {"titre": "Thaïlande originelle : sagesse bouddhiste des Moines, traditions de la tribu Karen et plages de rêve", "slug": "voyage-immersif-thailande", "periods": {"2025": {"leads": 5, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 6, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 7, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 5, "injoignable": 2, "prix": 1, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 1}}, {"titre": "Échappée sauvage en Colombie : Du triangle du café aux baleines du Chocó", "slug": "voyage-immersion-colombie", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "Le Sri Lanka du sacré au sauvage : voyage au fil des temples, des rencontres humaines et de la faune", "slug": "voyage-immersion-culturelle-sri-lanka", "periods": {"2025": {"leads": 5, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 6, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 6, "injoignable": 2, "prix": 1, "concurrence": 0, "programme": 1, "curieux": 0, "autre": 2}}, {"titre": "Au rythme du Sri Lanka : à vélo, en train et tuk-tuk vers l’aventure et les rencontres authentiques", "slug": "voyage-insolite-sri-lanka", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 3, "injoignable": 2, "prix": 0, "concurrence": 1, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "En immersion dans les villages traditionnels du Kenya et safari dans le Masai Mara", "slug": "voyage-kenya-safari-immersion-communauté-locale", "periods": {"2025": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 3, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 1}}, {"titre": "Roumanie, immersion dans les Carpates et observation des ours", "slug": "voyage-ours-roumanie", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Trek et immersion chez l'habitant au Pérou", "slug": "voyage-perou-trek-immersion-chez-l'habitant", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "Vivre la Tanzanie en immersion : nuits chez l'habitant, safari dans le Ngorongoro, plages de Zanzibar", "slug": "voyage-tanzanie-safari-immersion-Zanzibar", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {}}, {"titre": "La Tanzanie entre immersion culturelle, safaris et évasion à Zanzibar", "slug": "voyage-tanzanie-safari-immersion-communaut%C3%A9-locale", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 0, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 1}}, {"titre": "La Tanzanie entre immersion culturelle, safaris et évasion à Zanzibar", "slug": "voyage-tanzanie-safari-immersion-communaute-locale", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "La Tanzanie entre immersion culturelle, safaris et évasion à Zanzibar", "slug": "voyage-tanzanie-safari-immersion-communauté-locale", "periods": {"2025": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 1, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 0, "autre": 0}}, {"titre": "À bord du train de la Route de la Soie : expériences immersives et nuits en yourte en Ouzbékistan", "slug": "voyage-train-ouzbekistan", "periods": {"2025": {"leads": 2, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {"total_lost": 3, "injoignable": 1, "prix": 0, "concurrence": 0, "programme": 0, "curieux": 1, "autre": 1}}, {"titre": "Au fil de l'eau, le Vietnam de la baie d'Halong au Mékong", "slug": "voyage-vietnam", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 3, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {}}, {"titre": "Le Vietnam du Nord, un voyage à la rencontre des populations ethniques", "slug": "voyage-vietnam-nord", "periods": {"2025": {"leads": 0, "convertis": 0, "taux": 0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "2026": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "rolling": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}, "all": {"leads": 1, "convertis": 0, "taux": 0.0, "marge": 0.0, "pax": 0, "marge_par_pax": 0, "marge_par_dossier": 0}}, "loss_reasons": {}}], "catalog_site_count": 79};
+const METADATA = {"voyages": [{"slug": "voyage-chamane-mongolie", "voyage": "Voyagez en terre chamane en Mongolie", "spend_2025": 8904.0, "spend_2026": 3189.0, "spend_rolling": 8460.0, "spend_all": 12093.0, "impressions_2025": 3333826, "impressions_2026": 1008912, "impressions_rolling": 3438115, "impressions_all": 4342738}, {"slug": "trek-chez-lhabitant-nepal", "voyage": "Trek chez l'habitant au Népal, au fil des villages Sherpas", "spend_2025": 9956.0, "spend_2026": 1953.0, "spend_rolling": 6878.0, "spend_all": 11909.0, "impressions_2025": 3484006, "impressions_2026": 470460, "impressions_rolling": 2282662, "impressions_all": 3954466}, {"slug": "voyage-chamanique-perou", "voyage": "Pérou : immersion chamanique et rencontres quechuas", "spend_2025": 4178.0, "spend_2026": 3617.0, "spend_rolling": 7794.0, "spend_all": 7794.0, "impressions_2025": 1375806, "impressions_2026": 567500, "impressions_rolling": 1943306, "impressions_all": 1943306}, {"slug": "voyage-hiver-laponie-finlande", "voyage": "Séjour multi-activités en Laponie finlandaise", "spend_2025": 5314.0, "spend_2026": 1956.0, "spend_rolling": 5936.0, "spend_all": 7270.0, "impressions_2025": 2223276, "impressions_2026": 861304, "impressions_rolling": 2534185, "impressions_all": 3084580}, {"slug": "decouverte-nepal-trek-et-rencontres", "voyage": "A la découverte du Népal : randonnées accessibles et immersion locale", "spend_2025": 4814.0, "spend_2026": 1953.0, "spend_rolling": 5785.0, "spend_all": 6767.0, "impressions_2025": 1790154, "impressions_2026": 470460, "impressions_rolling": 2007417, "impressions_all": 2260614}, {"slug": "voyage-immersion-japon", "voyage": "Immersion au Japon : entre traditions, montagnes et rencontres", "spend_2025": 2269.0, "spend_2026": 2341.0, "spend_rolling": 4610.0, "spend_all": 4610.0, "impressions_2025": 644751, "impressions_2026": 582013, "impressions_rolling": 1226764, "impressions_all": 1226764}, {"slug": "voyage-immersif-vietnam", "voyage": "Le Vietnam du Nord au Sud, de la baie d’Halong au delta du Mékong", "spend_2025": 2939.0, "spend_2026": 1284.0, "spend_rolling": 3001.0, "spend_all": 4224.0, "impressions_2025": 653069, "impressions_2026": 284989, "impressions_rolling": 743271, "impressions_all": 938058}, {"slug": "sejour-berger-bearn", "voyage": "Vis ma vie de berger dans les Pyrénées", "spend_2025": 2823.0, "spend_2026": 1036.0, "spend_rolling": 2533.0, "spend_all": 3860.0, "impressions_2025": 2548684, "impressions_2026": 545540, "impressions_rolling": 2494699, "impressions_all": 3094224}, {"slug": "stage-boxe-thai-nord-thailande", "voyage": "Stage boxe thaï en immersion dans le nord de la Thaïlande", "spend_2025": 2627.0, "spend_2026": 0.0, "spend_rolling": 1093.0, "spend_all": 2627.0, "impressions_2025": 781005, "impressions_2026": 0, "impressions_rolling": 390217, "impressions_all": 781005}, {"slug": "trek-chez-lhabitant-cap-vert", "voyage": "Trek chez l'habitant sur l'île de Santo Antão au Cap-Vert", "spend_2025": 2104.0, "spend_2026": 0.0, "spend_rolling": 1303.0, "spend_all": 2104.0, "impressions_2025": 1359647, "impressions_2026": 0, "impressions_rolling": 1000462, "impressions_all": 1359647}, {"slug": "refuge-animaux-costa-rica", "voyage": "Occupez-vous des animaux de la jungle au Costa Rica", "spend_2025": 1933.0, "spend_2026": 0.0, "spend_rolling": 389.0, "spend_all": 1933.0, "impressions_2025": 618256, "impressions_2026": 0, "impressions_rolling": 181937, "impressions_all": 618256}, {"slug": "trek-tour-annapurna-nepal", "voyage": "Trek au Népal : Tour des Annapurnas et Lac Tilicho", "spend_2025": 1081.0, "spend_2026": 0.0, "spend_rolling": 1081.0, "spend_all": 1081.0, "impressions_2025": 682407, "impressions_2026": 0, "impressions_rolling": 682407, "impressions_all": 682407}, {"slug": "voyage-immersion-namibie", "voyage": "Dans la peau d’un Ranger : immersion au cœur d’une réserve en Namibie", "spend_2025": 987.0, "spend_2026": 0.0, "spend_rolling": 0.0, "spend_all": 987.0, "impressions_2025": 152853, "impressions_2026": 0, "impressions_rolling": 0, "impressions_all": 152853}, {"slug": "trek-nepal-camp-de-base-everest-himalaya", "voyage": "Trek vers le camp de base de l’Everest, au cœur de l’Himalaya", "spend_2025": 0.0, "spend_2026": 528.0, "spend_rolling": 528.0, "spend_all": 528.0, "impressions_2025": 0, "impressions_2026": 80356, "impressions_rolling": 80356, "impressions_all": 80356}, {"slug": "route-soie-ouzbekistan", "voyage": "À la rencontre des habitants de la route de la soie en Ouzbékistan", "spend_2025": 322.0, "spend_2026": 0.0, "spend_rolling": 15.0, "spend_all": 322.0, "impressions_2025": 117983, "impressions_2026": 0, "impressions_rolling": 5504, "impressions_all": 117983}, {"slug": "stage-jiu-jitsu-bresil-rio", "voyage": "Stage jiu-jitsu brésilien et immersion à Rio", "spend_2025": 0.0, "spend_2026": 279.0, "spend_rolling": 279.0, "spend_all": 279.0, "impressions_2025": 0, "impressions_2026": 60204, "impressions_rolling": 60204, "impressions_all": 60204}, {"slug": "reconnexion-nature-finlande", "voyage": "Finlande sauvage entre canoë, forêt boréale et nuits étoilées", "spend_2025": 159.0, "spend_2026": 0.0, "spend_rolling": 0.0, "spend_all": 159.0, "impressions_2025": 26680, "impressions_2026": 0, "impressions_rolling": 0, "impressions_all": 26680}, {"slug": "immersion-nomade-sahara", "voyage": "Vivez comme un nomade du Sahara au Maroc", "spend_2025": 113.0, "spend_2026": 0.0, "spend_rolling": 113.0, "spend_all": 113.0, "impressions_2025": 12668, "impressions_2026": 0, "impressions_rolling": 12668, "impressions_all": 12668}], "global": {"spend_2025": 58747.0, "impressions_2025": 22369786, "spend_2026": 20187.0, "impressions_2026": 5308214, "spend_rolling": 55329.0, "impressions_rolling": 20859868, "spend_all": 78934.0, "impressions_all": 27678000}};
+const V = DATA.voyages;
+const G = DATA.global_stats;
+
+let period = '2025';
+let seuils = { hit_conv: 5, hit_marge: 8000, kill_conv: 1, kill_marge: 2000, min_leads: 5, fix_min_leads: 30, fix_taux_max: 0.05, fix_marge_pax_min: 500 };
+let statutFilter = null;
+let sortKey = 'marge_25';
+let sortDesc = true;
+
+const PERIOD_LABELS = {
+  '2025': '2025 (année complète)',
+  '2026': '2026 YTD (au 11 mai)',
+  'rolling': '12 derniers mois glissants',
+  'all': 'Cumul 2025 + 2026 YTD',
+};
+
+function classify(v) {
+  const p = v.periods[period];
+  if (p.leads < seuils.min_leads) return 'PILOTE';
+  if (p.convertis === 0) return 'KILL';
+  if (p.convertis >= seuils.hit_conv && p.marge >= seuils.hit_marge) return 'HIT';
+  // FIX : demande forte (beaucoup de leads) mais conv ou marge unitaire cassée
+  const margePax = p.marge_par_pax || 0;
+  const tauxConv = p.leads > 0 ? p.convertis / p.leads : 0;
+  if (p.leads >= seuils.fix_min_leads && (tauxConv < seuils.fix_taux_max || (p.convertis > 0 && margePax < seuils.fix_marge_pax_min))) return 'FIX';
+  if (p.convertis <= seuils.kill_conv && p.marge <= seuils.kill_marge) return 'KILL';
+  return 'WATCH';
+}
+
+// Diagnostic auto : top 2 motifs de perte par volume absolu
+function diagnosticFix(v) {
+  const lr = v.loss_reasons;
+  if (!lr || !lr.total_lost || lr.total_lost < 5) return null;
+  const total = lr.total_lost;
+  const categories = [
+    { key: 'injoignable', icon: '🔕', label: 'Injoignable' },
+    { key: 'prix', icon: '💰', label: 'Prix' },
+    { key: 'concurrence', icon: '⚔️', label: 'Concurrence' },
+    { key: 'programme', icon: '📋', label: 'Programme' },
+    { key: 'curieux', icon: '🎯', label: 'Curieux' },
+  ];
+  const ranked = categories
+    .map(c => ({ icon: c.icon, label: c.label + ' ' + Math.round((lr[c.key]||0)/total*100) + '%', n: lr[c.key] || 0 }))
+    .filter(c => c.n > 0)
+    .sort((a, b) => b.n - a.n);
+  return ranked.length ? ranked.slice(0, 2) : null;
+}
+
+// Retourne un tooltip texte détaillé avec TOUS les motifs de perte (affiché au hover)
+function diagnosticFullBreakdown(v) {
+  const lr = v.loss_reasons;
+  if (!lr || !lr.total_lost) return '';
+  const total = lr.total_lost;
+  const lines = [(v.titre || '') + ' — ' + total + ' dossier' + (total>1?'s':'') + ' perdu' + (total>1?'s':'')];
+  const allCats = [
+    { key: 'injoignable', icon: '🔕', label: 'Injoignable' },
+    { key: 'prix', icon: '💰', label: 'Trop cher / budget insuffisant' },
+    { key: 'concurrence', icon: '⚔️', label: 'Choisi autre agence' },
+    { key: 'programme', icon: '📋', label: 'Ne correspond pas aux attentes' },
+    { key: 'curieux', icon: '🎯', label: 'Simple curieux' },
+    { key: 'autre', icon: '·', label: 'Autre' },
+  ];
+  allCats.forEach(c => {
+    const n = lr[c.key] || 0;
+    if (n > 0) {
+      const pct = Math.round(n/total*100);
+      lines.push(c.icon + '  ' + c.label + ' : ' + n + ' (' + pct + '%)');
+    }
+  });
+  return lines.join('\n');
+}
+
+function fmtEUR(n) { if (!n && n !== 0) return '—'; if (n === 0) return '0 €'; return Math.round(n).toLocaleString('fr-FR').replace(/,/g,' ') + ' €'; }
+function fmtInt(n) { return (n||0).toLocaleString('fr-FR').replace(/,/g,' '); }
+function fmtPct(n) { return ((n||0)*100).toFixed(1) + '%'; }
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+function infoIcon(tip) { return '<span class="info-icon" data-tip="'+escapeHtml(tip)+'">i</span>'; }
+
+// ---- KPIs
+function renderKPIs() {
+  const s = G[period];
+  const sAll = G['all'];
+  const margePax = s.pax > 0 ? s.marge / s.pax : 0;
+
+  // Bloc 1 : Performance commerciale
+  const perf = [
+    { label: 'Leads', tip: 'Total des dossiers entrés dans les pipelines Prospects ou Voyageurs sur la période.', value: fmtInt(s.leads), sub: '' },
+    { label: 'Convertis', tip: 'Dossiers qui sont passés (ou ont été créés directement) dans le pipeline Voyageurs. Taux = convertis ÷ leads.', value: fmtInt(s.convertis), sub: 'Taux ' + fmtPct(s.leads>0 ? s.convertis/s.leads : 0) },
+    { label: 'Marge totale', tip: 'Somme des marges totales (champ "Marge totale dossier") des deals du pipeline Voyageurs sur la période.', value: fmtEUR(s.marge), sub: '', cls: 'coral' },
+    { label: 'Marge par voyageur', tip: 'Marge totale ÷ nombre total de voyageurs (pax). Plus parlant que la marge par dossier : un dossier à 6 pax pèse plus qu\'un dossier à 2 pax.', value: fmtEUR(margePax), sub: s.pax + ' voyageurs', cls: 'coral' },
+  ];
+  document.getElementById('kpi-perf').innerHTML = perf.map(k =>
+    '<div class="kpi-card"><div class="kpi-label">'+k.label+' '+infoIcon(k.tip)+'</div><div class="kpi-value '+(k.cls||'')+'">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>'
+  ).join('');
+
+  // Bloc 2 : État du catalogue
+  let nbHit=0, nbWatch=0, nbKill=0, nbPilote=0, margeAct=0, margeTop10=0;
+  const sorted = V.slice().sort((a,b) => b.periods[period].marge - a.periods[period].marge);
+  sorted.forEach((v, i) => {
+    const st = classify(v);
+    if (st==='HIT') nbHit++;
+    else if (st==='WATCH') nbWatch++;
+    else if (st==='KILL') nbKill++;
+    else nbPilote++;
+    margeAct += v.periods[period].marge;
+    if (i < 10) margeTop10 += v.periods[period].marge;
+  });
+  const nbProd = V.filter(v => v.periods[period].convertis > 0).length;
+
+  const cat = [
+    { label: 'Voyages au catalogue site', tip: 'Nombre de voyages affichés sur odysway.com/voyages.', value: 79, sub: 'sur odysway.com/voyages' },
+    { label: 'Voyages qui vendent', tip: '≥ 1 conversion sur la période sélectionnée.', value: nbProd, sub: 'soit ' + (V.length>0 ? Math.round(nbProd/V.length*100) : 0) + '% des voyages actifs en AC', cls: 'vert' },
+    { label: 'Voyages 0 conversion', tip: 'Voyages avec au moins 5 leads sur la période mais zéro conversion. Candidats au KILL.', value: V.filter(v => v.periods[period].convertis===0 && v.periods[period].leads>=seuils.min_leads).length, sub: 'à revoir ou sortir', cls: 'red' },
+    { label: 'Part marge du Top 10', tip: 'Concentration : quel pourcentage de la marge totale est généré par les 10 meilleurs voyages ?', value: margeAct>0 ? Math.round(margeTop10/margeAct*100)+'%' : '—', sub: 'plus c\'est élevé, plus vous êtes dépendant de quelques produits', cls: 'coral' },
+  ];
+  document.getElementById('kpi-catalog').innerHTML = cat.map(k =>
+    '<div class="kpi-card"><div class="kpi-label">'+k.label+' '+infoIcon(k.tip)+'</div><div class="kpi-value '+(k.cls||'')+'">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>'
+  ).join('');
+
+  document.getElementById('period-desc').textContent = '— ' + PERIOD_LABELS[period];
+  document.getElementById('tag-distrib').textContent = PERIOD_LABELS[period];
+  document.getElementById('tag-table').textContent = PERIOD_LABELS[period];
+  // tag-meta supprimé avec la section UTM Meta
+}
+
+// ---- Seuils
+const SEUILS_FIELDS = [
+  { k: 'hit_conv', label: 'HIT — Conv. min', step: 1, tip: 'Nombre minimum de dossiers convertis sur la période pour être classé HIT. Monter ce seuil = plus exigeant (moins de voyages Hit).' },
+  { k: 'hit_marge', label: 'HIT — Marge min (€)', step: 500, tip: 'Marge totale minimum pour être classé HIT. Associé au critère conversions (les deux doivent être remplis).' },
+  { k: 'fix_min_leads', label: 'FIX — Leads min', step: 5, tip: 'Volume minimum de leads pour qu\'un voyage soit candidat à FIX (il y a de la demande mais la conversion est cassée). Défaut 30.' },
+  { k: 'fix_taux_max', label: 'FIX — Taux conv max', step: 0.01, tip: 'Si le taux de conversion est en-dessous de ce seuil malgré assez de leads, le voyage passe en FIX (demande là, conversion cassée). Défaut 5%.' },
+  { k: 'fix_marge_pax_min', label: 'FIX — Marge/pax min (€)', step: 50, tip: 'Si la marge moyenne PAR VOYAGEUR tombe en-dessous de ce seuil, le voyage passe en FIX (pricing à revoir, mix dossier famille vs couple inadapté). Défaut 500 €. Plus juste que marge/dossier car compare les voyages sur une base unitaire.' },
+  { k: 'kill_conv', label: 'KILL — Conv. max', step: 1, tip: 'Voyage tué si conversions ≤ à ce nombre ET marge ≤ au seuil marge KILL. Défaut : 1 (au plus 1 conversion).' },
+  { k: 'kill_marge', label: 'KILL — Marge max (€)', step: 500, tip: 'Voyage tué si marge totale ≤ à ce montant ET conversions ≤ au seuil KILL conv. Défaut : 2 000 €.' },
+  { k: 'min_leads', label: 'Exposition min (leads)', step: 1, tip: 'Sous ce volume de leads, le voyage passe en PILOTE (pas assez exposé pour juger). Évite de condamner un voyage tout neuf ou jamais mis en avant.' },
+];
+
+function renderSeuils() {
+  document.getElementById('seuils-grid').innerHTML = SEUILS_FIELDS.map(f =>
+    '<div class="seuil-input"><label>'+f.label+' '+infoIcon(f.tip)+'</label><input type="number" id="s_'+f.k+'" value="'+seuils[f.k]+'" step="'+f.step+'" min="0"></div>'
+  ).join('');
+  SEUILS_FIELDS.forEach(f => {
+    document.getElementById('s_'+f.k).addEventListener('input', e => {
+      seuils[f.k] = +e.target.value || 0;
+      renderAll();
+    });
+  });
+}
+
+// ---- Distrib
+function renderDistrib() {
+  const counts = { HIT: 0, WATCH: 0, FIX: 0, KILL: 0, PILOTE: 0 };
+  V.forEach(v => counts[classify(v)]++);
+  const cards = [
+    { k: 'HIT', label: 'Hit', desc: 'Stars : investir', cls: 'hit' },
+    { k: 'WATCH', label: 'Watch', desc: 'Moyens : surveiller', cls: 'watch' },
+    { k: 'FIX', label: 'Fix', desc: 'Demande OK, à réparer', cls: 'fix' },
+    { k: 'KILL', label: 'Kill', desc: 'À sortir sous 90j', cls: 'kill' },
+    { k: 'PILOTE', label: 'Pilote', desc: 'Peu exposés', cls: 'pilote' },
+  ];
+  document.getElementById('distrib-grid').innerHTML = cards.map(c =>
+    '<div class="distrib-card '+c.cls+' '+(statutFilter===c.k?'active':'')+'" onclick="toggleStatut(\''+c.k+'\')"><div class="count">'+counts[c.k]+'</div><div class="label">'+c.label+'</div><div class="desc">'+c.desc+'</div></div>'
+  ).join('');
+}
+
+function toggleStatut(k) { statutFilter = (statutFilter === k) ? null : k; renderDistrib(); renderTable(); }
+window.toggleStatut = toggleStatut;
+
+// ---- Table
+function renderTable() {
+  const q = (document.getElementById('search').value || '').toLowerCase();
+  let rows = V.map(v => ({
+    ...v,
+    statut: classify(v),
+    leads_p: v.periods[period].leads,
+    conv_p: v.periods[period].convertis,
+    taux_p: v.periods[period].taux,
+    marge_25: v.periods['2025'].marge,
+    marge_26: v.periods['2026'].marge,
+    marge_par_pax: v.periods[period].marge_par_pax,
+  }));
+  if (statutFilter) rows = rows.filter(r => r.statut === statutFilter);
+  if (q) rows = rows.filter(r => (r.titre||'').toLowerCase().includes(q) || (r.slug||'').toLowerCase().includes(q));
+
+  const statutOrder = { HIT: 0, WATCH: 1, FIX: 2, KILL: 3, PILOTE: 4 };
+  rows.sort((a,b) => {
+    let va = a[sortKey], vb = b[sortKey];
+    if (sortKey === 'statut') { va = statutOrder[va]; vb = statutOrder[vb]; }
+    if (sortKey === 'titre') { va = (va||'').toLowerCase(); vb = (vb||'').toLowerCase(); return sortDesc ? vb.localeCompare(va) : va.localeCompare(vb); }
+    if (sortKey === 'rank') return 0;
+    return sortDesc ? (vb - va) : (va - vb);
+  });
+
+  document.getElementById('filter-info').textContent = rows.length + ' / ' + V.length + ' voyages';
+  document.getElementById('scorecard-body').innerHTML = rows.map((r, i) => {
+    // Diagnostic auto : top 2 motifs par volume, affiché dès qu'il y a ≥ 5 dossiers perdus
+    let diagCell = '—';
+    const diag = diagnosticFix(r);
+    const fullBreakdown = diagnosticFullBreakdown(r);
+    if (diag) {
+      diagCell = diag.slice(0, 2).map(d => '<span data-tooltip="'+escapeHtml(fullBreakdown)+'" style="display:inline-block;background:#F5F5F0;padding:2px 7px;border-radius:12px;font-size:11px;margin-right:3px;white-space:nowrap;cursor:help;">'+d.icon+' '+d.label+'</span>').join('');
+    } else if (fullBreakdown) {
+      diagCell = '<span data-tooltip="'+escapeHtml(fullBreakdown)+'" style="color:var(--muted);font-size:11px;cursor:help;">voir détail</span>';
+    }
+    return '<tr><td class="num">'+(i+1)+'</td>' +
+    '<td class="titre-cell"><div class="titre">'+escapeHtml(r.titre || '(sans titre)')+'</div><div class="slug">'+escapeHtml(r.slug)+'</div></td>' +
+    '<td class="num">'+fmtInt(r.leads_p)+'</td>' +
+    '<td class="num">'+fmtInt(r.conv_p)+'</td>' +
+    '<td class="num">'+(r.leads_p>0 ? fmtPct(r.taux_p) : '—')+'</td>' +
+    '<td class="num">'+fmtEUR(r.marge_25)+'</td>' +
+    '<td class="num">'+fmtEUR(r.marge_26)+'</td>' +
+    '<td class="num" style="font-weight:600; color: var(--terra);">'+fmtEUR(r.marge_par_pax)+'</td>' +
+    '<td><span class="statut '+r.statut+'">'+r.statut+'</span></td>' +
+    '<td>'+diagCell+'</td></tr>';
+  }).join('');
+}
+
+document.querySelectorAll('table.scorecard thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const k = th.getAttribute('data-sort');
+    if (sortKey === k) { sortDesc = !sortDesc; } else { sortKey = k; sortDesc = true; if (k==='titre') sortDesc = false; }
+    renderTable();
+  });
+});
+document.getElementById('search').addEventListener('input', renderTable);
+
+function resetFilters() { statutFilter = null; document.getElementById('search').value = ''; renderDistrib(); renderTable(); }
+window.resetFilters = resetFilters;
+
+// ---- Catalogue
+function renderCatalogue() {
+  const CAT = ["Immersion pastorale et randonnées en Béarn","Immersion et bivouac en Soule dans les Pyrénées basques","Découvrez l'art de la photo animalière dans le Jura","Partagez le quotidien d'astronomes au cœur d'un véritable observatoire","En immersion avec un photographe animalier dans les Vosges","Sur les pas de l'ours dans les Pyrénées","Stage photo en Bretagne Nord, à l'heure des grandes marées","Crète pastorale : entre plages, randonnées et rencontres avec un berger","A pied sur la route du thé au Sri Lanka, entre plantations, villages et plages","Voyage au Bénin, au cœur des villages et traditions","Trek vers le camp de base de l'Everest, au cœur de l'Himalaya","Laponie en famille : chiens de traîneaux, aurores boréales et immersion locale","Trek Mongolie : Khangai, vallée d'Orkhon et immersion chez les nomades","Immersion photographique au cœur des Alpes, dans le Pays de la Meije","Açores : randonnées, volcans et baleines","Immersion nomade dans le Sud de l'Algérie avec les Touaregs","Voyage polaire en Laponie norvégienne : forêts enneigées et aurores boréales","Au fil du Rajasthan : découverte et immersion chez les Bishnoïs","A la découverte du Népal : randonnées accessibles et immersion locale","Aventure hivernale en Finlande entre nature, neige et activités locales","Guatemala : volcans, culture maya et rencontres locales","Séjour multiactivités dans les fjords canadiens","Séjour en Albanie, entre montagnes, lacs et vie locale","Santiago, l'autre Cap-Vert","Bénin, rencontres et traditions au pays vodoun","Immersion nomade et randonnée dans le Sahara marocain","Salvador : rencontres locales, villages, volcans et océan","Immersion nomade au cœur des steppes kirghizes","Arunachal Pradesh, voyage au cœur des tribus de l'Himalaya indien","Initiez-vous au Kung Fu dans un temple Shaolin","Madagascar, immersion culturelle entre villages et grands paysages","Patagonie Chili & Argentine : montagnes, glaciers et immensité","Finlande sauvage entre canoë, forêt boréale et nuits étoilées","Costa Rica, immersion dans un refuge animalier et côte caraïbe","Retraite en Himalaya : yoga et méditation au Sikkim","Immersion sur la Route de la soie en Ouzbékistan","Initiation à l'observation astronomique en Corse","Immersion hivernale au cœur des Pyrénées","Premiers pas en astronomie, au cœur d'un observatoire","Stage boxe thaï en immersion dans le nord de la Thaïlande","Immersion en Amazonie brésilienne, au cœur de la jungle","Trek au Cap-Vert dans les vallées de Santo Antão et nuits chez l'habitant","Trek chez l'habitant au Ladakh, de villages en monastères","Trek chez l'habitant en Équateur : immersion andine","Trek chez l'habitant au Népal, au fil des villages Sherpas","Trek à Madère, entre sommets, forêts et océan","Trek au Népal : Tour des Annapurnas et Lac Tilicho","Bolivie : lac Titicaca, désert de sel et rencontres hors des sentiers battus","Voyagez en terre chamane en Mongolie","Pérou : immersion chamanique et rencontres quechuas","A cheval, à la rencontre des nomades en Mongolie","Voyage au Costa Rica : volcans, jungle et douceur de vivre","Colombie : au rythme des habitants et des paysages","Au fil de l'Egypte : Le Caire, Louxor et croisière intimiste sur le Nil","Louxor, Vallée des Rois et croisière intimiste sur le Nil en Égypte","Séjour multi-activités en Laponie finlandaise","Voyage au Rajasthan : éveil des sens au cœur de l'Inde","Thaïlande originelle : sagesse bouddhiste des Moines, traditions de la tribu Karen et plages de rêve","Le Vietnam du Nord au Sud, de la baie d'Halong au delta du Mékong","Immersion sauvage en Colombie : Du triangle du café aux baleines du Chocó","Immersion culturelle au coeur des traditions d'une famille balinaise","Japon autrement : Voyagez de Kyoto à Tokyo, entre tradition et modernité","Le Sri Lanka du sacré au sauvage : voyage au fil des temples, des rencontres humaines et de la faune","Immersion au Japon : entre traditions, montagnes et rencontres","Dans la peau d'un Ranger : immersion au cœur d'une réserve en Namibie","Au rythme du Sri Lanka : à vélo, en train et tuk-tuk vers l'aventure et les rencontres authentiques","En immersion dans les villages traditionnels du Kenya et safari dans le Masai Mara","Partagez le quotidien des nomades des steppes mongoles","Roumanie, immersion dans les Carpates et observation des ours","Pérou : grands sites incas et immersion au lac Titicaca","Trek et immersion chez l'habitant au Pérou","Sur les rives du Nil, du Caire à Abou Simbel","Vivre la Tanzanie en immersion : nuits chez l'habitant, safari dans le Ngorongoro, plages de Zanzibar","Voyage en train en Ouzbékistan, entre citées légendaires et steppes nomades","Voyagez comme un trappeur en Finlande","Trek et immersion dans les montagnes du Sikkim, au cœur de l'Himalaya","Le Vietnam du Nord, un voyage à la rencontre des populations ethniques","Stage jiu-jitsu brésilien et immersion à Rio","Tour du Queyras, entre lacs d'altitude et villages suspendus"];
+  document.getElementById('catalogue-list').innerHTML = CAT.map((t, i) =>
+    '<div class="item"><span class="num-badge">'+(i+1)+'.</span><span>'+escapeHtml(t)+'</span></div>'
+  ).join('');
+}
+
+// ---- Charts
+let chartTop10, chartStatutMarge, chartMeta;
+function renderCharts() {
+  const top10 = V.slice().sort((a,b) => b.periods[period].marge - a.periods[period].marge).slice(0, 10);
+  const ctx1 = document.getElementById('chart-top10').getContext('2d');
+  if (chartTop10) chartTop10.destroy();
+  chartTop10 = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: top10.map(v => { const s = v.titre||v.slug; return s.length>38 ? s.substring(0,38)+'…' : s; }),
+      datasets: [{ label: 'Marge (€)', data: top10.map(v => v.periods[period].marge), backgroundColor: '#DB6644', borderRadius: 4 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtEUR(ctx.raw) } } },
+      scales: {
+        x: { ticks: { callback: v => fmtEUR(v), font: { size: 11 } }, grid: { color: '#EEE' } },
+        y: { ticks: { font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  });
+
+  const margeByStatut = { HIT: 0, WATCH: 0, KILL: 0, PILOTE: 0 };
+  V.forEach(v => { margeByStatut[classify(v)] += v.periods[period].marge; });
+  const ctx2 = document.getElementById('chart-statut-marge').getContext('2d');
+  if (chartStatutMarge) chartStatutMarge.destroy();
+  chartStatutMarge = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['HIT', 'WATCH', 'KILL', 'PILOTE'],
+      datasets: [{
+        data: [margeByStatut.HIT, margeByStatut.WATCH, margeByStatut.KILL, margeByStatut.PILOTE],
+        backgroundColor: ['#2D5843', '#F0B348', '#C0392B', '#B0B7BC'],
+        borderWidth: 2, borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 12 } } }, tooltip: { callbacks: { label: ctx => ctx.label + ' : ' + fmtEUR(ctx.raw) } } }
+    }
+  });
+}
+
+// ---- Meta ROAS section (nouveau, basé sur export Meta Ads Manager)
+let metaAttribution = 0.7;
+let metaSortKey = 'spend';
+let metaSortDesc = true;
+
+function verdictMeta(v) {
+  if (v.conv === 0 && v.spend > 100) return { label: 'PURE PERTE', cls: 'KILL', order: 4 };
+  if (v.roas_ajuste >= 3) return { label: 'RENTABLE', cls: 'HIT', order: 1 };
+  if (v.roas_ajuste >= 1.5) return { label: 'À OPTIMISER', cls: 'WATCH', order: 2 };
+  if (v.roas_ajuste > 0) return { label: 'À COUPER', cls: 'KILL', order: 3 };
+  return { label: 'N/A', cls: 'PILOTE', order: 5 };
+}
+
+function renderMetaRoas() {
+  const G = METADATA.global;
+  // Index DATA.voyages par slug pour lookup rapide
+  const vBySlug = {};
+  V.forEach(v => { vBySlug[v.slug] = v; });
+
+  const voys = METADATA.voyages.slice().map(v => {
+    const spendPeriod = v['spend_' + period] || 0;
+    const impressionsPeriod = v['impressions_' + period] || 0;
+    const acData = vBySlug[v.slug];
+    const pSel = acData ? acData.periods[period] : { leads: 0, convertis: 0, marge: 0 };
+    const margePeriod = pSel.marge;
+    const convPeriod = pSel.convertis;
+    const margeAttrib = margePeriod * metaAttribution;
+    const benefNet = margeAttrib - spendPeriod;
+    const roasAjuste = spendPeriod > 0 ? margeAttrib / spendPeriod : 0;
+    const v2 = Object.assign({}, v, {
+      spend: Math.round(spendPeriod),
+      impressions: impressionsPeriod,
+      marge_voyage: margePeriod,
+      conv: convPeriod,
+      marge_attribuee: margeAttrib,
+      benef_net: benefNet,
+      roas_ajuste: roasAjuste,
+    });
+    v2.verdict_obj = verdictMeta(v2);
+    return v2;
+  }).filter(v => v.spend > 0 || v.marge_voyage > 0);
+
+  const totalSpend = voys.reduce((s,v) => s+v.spend, 0);
+  const totalMargeAttrib = voys.reduce((s,v) => s+v.marge_attribuee, 0);
+  const totalNet = totalMargeAttrib - totalSpend;
+  const roasAjusteMoyen = totalSpend > 0 ? totalMargeAttrib / totalSpend : 0;
+
+  // Period tag
+  const tagEl = document.getElementById('tag-meta-roas');
+  if (tagEl) tagEl.textContent = PERIOD_LABELS[period];
+
+  // Global KPIs — totaux sur la période sélectionnée (réels)
+  const periodLabel = PERIOD_LABELS[period];
+  const totalSpendGlobal = G['spend_' + period] || 0;
+  const kpiHtml = [
+    { label: 'Dépense Meta (période)', value: fmtEUR(totalSpendGlobal), sub: periodLabel + ' · dépense réelle totale (incluant générique + partenaires)', cls: 'coral' },
+    { label: 'Marge attribuée à Meta', value: fmtEUR(totalMargeAttrib), sub: 'Marge voyages × ' + Math.round(metaAttribution*100) + '% (attribution)', cls: 'vert' },
+    { label: 'Bénéfice net Meta', value: fmtEUR(totalNet), sub: 'Marge attribuée − dépense Meta', cls: totalNet >= 0 ? 'vert' : 'red' },
+    { label: 'ROAS ajusté moyen', value: roasAjusteMoyen.toFixed(1) + '×', sub: roasAjusteMoyen >= 2 ? 'investissement rentable' : (roasAjusteMoyen >= 1 ? "à l'équilibre" : 'destructeur de valeur'), cls: roasAjusteMoyen >= 2 ? 'vert' : (roasAjusteMoyen >= 1 ? 'coral' : 'red') },
+  ];
+  document.getElementById('meta-global-kpis').innerHTML = kpiHtml.map(k =>
+    '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-value '+(k.cls||'')+'" style="font-size:22px;">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>'
+  ).join('');
+
+  // CHART : Bénéfice net par voyage (diverging bars)
+  const sortedNet = voys.slice().filter(v => v.spend >= 100).sort((a,b) => b.benef_net - a.benef_net);
+  const ctxB = document.getElementById('chart-benefnet').getContext('2d');
+  if (window.chartBenefNet) window.chartBenefNet.destroy();
+  window.chartBenefNet = new Chart(ctxB, {
+    type: 'bar',
+    data: {
+      labels: sortedNet.map(v => { const s = v.voyage; return s.length > 32 ? s.substring(0, 32) + '…' : s; }),
+      datasets: [{
+        data: sortedNet.map(v => Math.round(v.benef_net)),
+        backgroundColor: sortedNet.map(v => v.benef_net >= 0 ? '#2D5843' : '#C0392B'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => {
+          const v = sortedNet[ctx.dataIndex];
+          return ['Dépense : ' + fmtEUR(v.spend), 'Marge attribuée : ' + fmtEUR(v.marge_attribuee), 'Bénéfice net : ' + fmtEUR(v.benef_net), 'ROAS ajusté : ' + v.roas_ajuste.toFixed(1) + '×'];
+        }}}
+      },
+      scales: {
+        x: { title: { display: true, text: 'Bénéfice net (€)' }, ticks: { callback: v => fmtEUR(v) }, grid: { color: '#EEE' } },
+        y: { ticks: { font: { size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+
+  // CHART : Top ROAS ajustés — ne montrer QUE les voyages rentables (ROAS > 1,5×)
+  const topRoas = voys.filter(v => v.conv > 0 && v.spend >= 300 && v.roas_ajuste >= 1.5).sort((a,b) => b.roas_ajuste - a.roas_ajuste).slice(0, 10);
+  const ctx2 = document.getElementById('chart-top-roas').getContext('2d');
+  if (window.chartTopRoas) window.chartTopRoas.destroy();
+  window.chartTopRoas = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: topRoas.map(v => { const s = v.voyage; return s.length > 32 ? s.substring(0, 32) + '…' : s; }),
+      datasets: [{ data: topRoas.map(v => +v.roas_ajuste.toFixed(2)), backgroundColor: topRoas.map(v => v.roas_ajuste >= 3 ? '#2D5843' : v.roas_ajuste >= 1.5 ? '#F0B348' : '#C0392B'), borderRadius: 4 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'ROAS ajusté ' + ctx.raw + '×' } } },
+      scales: { x: { ticks: { callback: v => v + '×' }, grid: { color: '#EEE' } }, y: { grid: { display: false } } }
+    }
+  });
+
+  // NARRATIVE — Ma lecture des chiffres
+  const winners = voys.filter(v => v.roas_ajuste >= 3 && v.spend >= 500).sort((a,b) => b.benef_net - a.benef_net);
+  const losers = voys.filter(v => v.spend > 1500 && v.benef_net < 0).sort((a,b) => a.benef_net - b.benef_net);
+  const dead = voys.filter(v => v.conv === 0 && v.spend > 100);
+
+  const mkList = arr => arr.map(v => '<strong>'+escapeHtml(v.voyage)+'</strong>').join(', ');
+  const attributionLabel = Math.round(metaAttribution*100);
+
+  let narrative = '';
+  narrative += '<p style="margin:0 0 12px 0;">Avec l\'hypothèse d\'attribution à <strong>' + attributionLabel + '%</strong>, Meta vous a ' +
+    (totalNet >= 0 ? 'fait <strong style="color:var(--vert);">gagner ' + fmtEUR(totalNet) + '</strong>' : '<strong style="color:var(--red);">coûté ' + fmtEUR(-totalNet) + '</strong> de plus qu\'il n\'a rapporté') +
+    ' sur la période (ROAS ajusté moyen ' + roasAjusteMoyen.toFixed(1) + '×).</p>';
+
+  if (winners.length > 0) {
+    const topWinner = winners[0];
+    narrative += '<p style="margin:0 0 10px 0;"><strong style="color:var(--vert);">Ce qui marche</strong> — ' + winners.length + ' voyage(s) dégagent un bénéfice net solide. Le gros contributeur : ' + mkList([topWinner]) + ' (' + fmtEUR(topWinner.benef_net) + ' de bénéfice, ROAS ' + topWinner.roas_ajuste.toFixed(1) + '×). ';
+    if (winners.length > 1) narrative += 'Derrière : ' + mkList(winners.slice(1, 4)) + '. ';
+    narrative += 'Reco : maintenir et tester d\'augmenter le budget de 30-50% sur ces voyages.</p>';
+  }
+
+  if (losers.length > 0) {
+    const totalLoss = losers.reduce((s,v) => s+v.benef_net, 0);
+    narrative += '<p style="margin:0 0 10px 0;"><strong style="color:var(--red);">Ce qui saigne</strong> — ' + losers.length + ' voyage(s) détruisent ' + fmtEUR(-totalLoss) + ' nets : ' + mkList(losers.slice(0, 4)) + '. ';
+    narrative += 'Reco : couper ces campagnes dans les 15 jours ou revoir en profondeur (pricing, audience, créas).</p>';
+  }
+
+  if (dead.length > 0) {
+    const totalDead = dead.reduce((s,v) => s+v.spend, 0);
+    narrative += '<p style="margin:0 0 10px 0;"><strong style="color:var(--ocre);">Budget gaspillé</strong> — ' + fmtEUR(totalDead) + ' dépensés sur ' + dead.length + ' voyage(s) qui n\'ont généré <em>aucune</em> conversion dans l\'AC (' + mkList(dead.slice(0, 5)) + (dead.length>5 ? ', …' : '') + '). ';
+    narrative += 'Ce sont soit des voyages prématurément pushés sur Meta (avant validation organique), soit du tracking cassé. Dans les deux cas : arrêter ces Ads en priorité.</p>';
+  }
+
+  narrative += '<p style="margin:10px 0 0 0; color: var(--muted); font-size: 13px;">Rappel : le ROAS ajusté bouge avec le curseur d\'attribution en haut. Plus le curseur est bas, plus la lecture est prudente.</p>';
+  document.getElementById('meta-narrative').innerHTML = narrative;
+
+  // TABLE avec tri
+  voys.sort((a,b) => {
+    let va = a[metaSortKey], vb = b[metaSortKey];
+    if (metaSortKey === 'voyage') { va = (va||'').toLowerCase(); vb = (vb||'').toLowerCase(); return metaSortDesc ? vb.localeCompare(va) : va.localeCompare(vb); }
+    if (metaSortKey === 'verdict') { va = a.verdict_obj.order; vb = b.verdict_obj.order; }
+    return metaSortDesc ? (vb - va) : (va - vb);
+  });
+
+  document.getElementById('meta-roas-body').innerHTML = voys.map(v =>
+    '<tr>' +
+    '<td class="titre-cell"><div class="titre">'+escapeHtml(v.voyage)+'</div></td>' +
+    '<td class="num" style="font-weight:600;">'+fmtEUR(v.spend)+'</td>' +
+    '<td class="num">'+fmtInt(v.impressions)+'</td>' +
+    '<td class="num">'+fmtInt(v.conv)+'</td>' +
+    '<td class="num" style="color:var(--terra);">'+fmtEUR(v.marge_voyage)+'</td>' +
+    '<td class="num" style="color:var(--terra);font-weight:600;">'+fmtEUR(v.marge_attribuee)+'</td>' +
+    '<td class="num" style="font-weight:700;color:'+(v.benef_net>=0?'var(--vert)':'var(--red)')+';">'+fmtEUR(v.benef_net)+'</td>' +
+    '<td class="num" style="font-weight:700;color:'+(v.roas_ajuste>=3?'var(--vert)':(v.roas_ajuste>=1.5?'var(--ocre)':(v.roas_ajuste>0?'var(--red)':'var(--muted)')))+';">'+(v.roas_ajuste>0 ? v.roas_ajuste.toFixed(1)+'×' : '—')+'</td>' +
+    '<td><span class="statut '+v.verdict_obj.cls+'">'+v.verdict_obj.label+'</span></td>' +
+    '</tr>'
+  ).join('');
+}
+
+// Bind sort on ROAS table headers (once DOM ready)
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('#meta-roas-table thead th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const k = th.getAttribute('data-sort');
+      if (metaSortKey === k) { metaSortDesc = !metaSortDesc; } else { metaSortKey = k; metaSortDesc = true; if (k === 'voyage') metaSortDesc = false; }
+      renderMetaRoas();
+    });
+  });
+
+  // Custom tooltip (rich, multi-line) for elements with data-tooltip
+  const tip = document.createElement('div');
+  tip.id = '__custom_tooltip';
+  tip.style.cssText = 'position:fixed;pointer-events:none;background:#2B4C52;color:#fff;padding:10px 14px;border-radius:6px;font-size:12px;line-height:1.55;white-space:pre;z-index:10000;box-shadow:0 6px 20px rgba(0,0,0,0.25);display:none;max-width:360px;font-family:inherit;';
+  document.body.appendChild(tip);
+
+  document.addEventListener('mouseover', e => {
+    const el = e.target && e.target.closest ? e.target.closest('[data-tooltip]') : null;
+    if (el) {
+      tip.textContent = el.getAttribute('data-tooltip');
+      tip.style.display = 'block';
+    }
+  });
+  document.addEventListener('mousemove', e => {
+    if (tip.style.display === 'block') {
+      const x = e.clientX + 14;
+      const y = e.clientY + 14;
+      // Keep tooltip on screen
+      const tipW = tip.offsetWidth;
+      const tipH = tip.offsetHeight;
+      const maxX = window.innerWidth - tipW - 8;
+      const maxY = window.innerHeight - tipH - 8;
+      tip.style.left = Math.min(x, maxX) + 'px';
+      tip.style.top = Math.min(y, maxY) + 'px';
+    }
+  });
+  document.addEventListener('mouseout', e => {
+    const el = e.target && e.target.closest ? e.target.closest('[data-tooltip]') : null;
+    if (el) tip.style.display = 'none';
+  });
+});
+
+window.setMetaAttribution = function(val) {
+  metaAttribution = Math.max(0, Math.min(1, val/100));
+  document.getElementById('attribution-value').textContent = Math.round(metaAttribution*100)+'%';
+  renderMetaRoas();
+};
+
+// ---- (Ancienne section UTM Meta supprimée — attribution UTM trop partielle)
+
+// ---- Period switch
+document.querySelectorAll('.period-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    period = btn.getAttribute('data-p');
+    renderAll();
+  });
+});
+
+function renderAll() {
+  renderKPIs();
+  renderDistrib();
+  renderTable();
+  renderCharts();
+  renderMetaRoas();
+}
+
+renderSeuils();
+renderCatalogue();
+renderAll();
+</script>
+</body>
+</html>
