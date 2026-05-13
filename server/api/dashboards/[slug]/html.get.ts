@@ -6,7 +6,7 @@ const DASHBOARD_CSP =
   "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
   "img-src 'self' data: https:; " +
   "connect-src 'self'; " +
-  'frame-ancestors https://dashboards.odysway.com http://localhost:3000;'
+  'frame-ancestors http://localhost:3000 https://odysway-secured-dashboard-wrapper.vercel.app;'
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug')
