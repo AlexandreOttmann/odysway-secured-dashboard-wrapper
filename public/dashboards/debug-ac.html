@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Debug — ActiveCampaign tables</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; background: #fafaf7; color: #111; margin: 0; padding: 20px; line-height: 1.4; }
+  h1 { font-size: 18px; margin: 0 0 16px 0; }
+  h2 { font-size: 14px; margin: 24px 0 8px 0; color: #2b4c52; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  .card { background: #fff; border: 1px solid #e5e5e0; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+  .kpi { background: #eaf4f6; padding: 10px 12px; border-radius: 6px; }
+  .kpi .label { font-size: 11px; text-transform: uppercase; color: #666; }
+  .kpi .value { font-size: 20px; font-weight: 700; color: #2b4c52; }
+  pre { background: #f4f4f0; padding: 10px; border-radius: 6px; overflow: auto; font-size: 11px; max-height: 260px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th, td { padding: 4px 8px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+  th { background: #2b4c52; color: #fff; position: sticky; top: 0; }
+  .scroll { max-height: 360px; overflow: auto; border: 1px solid #ddd; border-radius: 6px; }
+  .err { color: #c0392b; font-weight: 600; }
+  .ok { color: #2d5843; font-weight: 600; }
+  .muted { color: #888; }
+  button { padding: 6px 12px; background: #2b4c52; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 6px; }
+  button:hover { background: #1e3a3f; }
+</style>
+</head>
+<body>
+
+<h1>Debug — ActiveCampaign tables</h1>
+<div class="card">
+  <button id="run">Re-run all checks</button>
+  <span id="status" class="muted">Idle.</span>
+</div>
+
+<h2>1. activecampaign_deals — counts & distinct values</h2>
+<div class="card" id="deals-summary"><span class="muted">…</span></div>
+
+<h2>2. activecampaign_deals — first 20 rows (all columns)</h2>
+<div class="card scroll" id="deals-rows"><span class="muted">…</span></div>
+
+<h2>3. activecampaign_clients — counts</h2>
+<div class="card" id="clients-summary"><span class="muted">…</span></div>
+
+<h2>4. activecampaign_clients — first 20 rows</h2>
+<div class="card scroll" id="clients-rows"><span class="muted">…</span></div>
+
+<h2>5. Raw probe responses</h2>
+<div class="card"><pre id="raw"></pre></div>
+
+<script>
+const pending = {};
+let nextId = 0;
+function query(view, body) {
+  return new Promise((resolve, reject) => {
+    const id = String(++nextId);
+    pending[id] = { resolve, reject };
+    setTimeout(() => { if (pending[id]) { delete pending[id]; reject(new Error('timeout')); } }, 30000);
+    window.parent.postMessage({ type: 'query', view, body: body || {}, params: (body && body.params) || {}, requestId: id }, '*');
+  });
+}
+window.addEventListener('message', e => {
+  const { type, requestId, data, error } = e.data || {};
+  if (type !== 'query-result' && type !== 'query-error') return;
+  const p = pending[requestId]; if (!p) return; delete pending[requestId];
+  if (type === 'query-result') p.resolve(data); else p.reject(new Error(error || 'query failed'));
+});
+
+function el(id) { return document.getElementById(id); }
+function renderRows(rows, mountId) {
+  if (!rows || rows.length === 0) { el(mountId).innerHTML = '<span class="muted">no rows returned</span>'; return; }
+  const cols = Array.from(new Set(rows.flatMap(r => Object.keys(r || {}))));
+  let html = '<table><thead><tr>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+  for (const r of rows) {
+    html += '<tr>' + cols.map(c => {
+      const v = r[c];
+      const s = v === null || v === undefined ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+      return '<td title="' + s.replace(/"/g, '&quot;') + '">' + (s.length > 80 ? s.slice(0, 80) + '…' : s) + '</td>';
+    }).join('') + '</tr>';
+  }
+  html += '</tbody></table>';
+  el(mountId).innerHTML = html;
+}
+function distinct(rows, col) {
+  const m = new Map();
+  for (const r of rows) { const k = r[col] === undefined ? null : r[col]; m.set(k, (m.get(k) || 0) + 1); }
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+function kpiCard(label, value) {
+  return '<div class="kpi"><div class="label">' + label + '</div><div class="value">' + value + '</div></div>';
+}
+
+async function run() {
+  el('status').textContent = 'Running…';
+  el('status').className = 'muted';
+  const raw = el('raw');
+  raw.textContent = '';
+
+  // ---- DEALS
+  try {
+    // First, do a broad fetch with no filters (cap 5000) so we can compute counts + distinct values client-side
+    const dealsAll = await query('activecampaign_deals', { select: ['id', 'slug', 'status', 'pipeline_id', 'created_at', 'conversion_date', 'total_margin', 'nb_traveler', 'lost_reason'], limit: 5000 });
+    raw.textContent += 'deals (no filter, limit 5000) → ' + (dealsAll ? dealsAll.length : 0) + ' rows\n';
+
+    const total = dealsAll ? dealsAll.length : 0;
+    const byPipeline = distinct(dealsAll || [], 'pipeline_id');
+    const byStatus = distinct(dealsAll || [], 'status');
+    const withSlug = (dealsAll || []).filter(d => d.slug).length;
+    const distinctSlugs = new Set((dealsAll || []).map(d => d.slug).filter(Boolean)).size;
+    const conv2025 = (dealsAll || []).filter(d => d.pipeline_id === 2 && (d.conversion_date || '').slice(0, 4) === '2025').length;
+    const conv2026 = (dealsAll || []).filter(d => d.pipeline_id === 2 && (d.conversion_date || '').slice(0, 4) === '2026').length;
+    const created2025 = (dealsAll || []).filter(d => (d.created_at || '').slice(0, 4) === '2025').length;
+    const created2026 = (dealsAll || []).filter(d => (d.created_at || '').slice(0, 4) === '2026').length;
+
+    let html = '<div class="grid">';
+    html += kpiCard('Rows returned', total + (total === 5000 ? ' (cap hit)' : ''));
+    html += kpiCard('With slug', withSlug);
+    html += kpiCard('Distinct slugs', distinctSlugs);
+    html += kpiCard('pipeline_id = 2 conv. 2025', conv2025);
+    html += kpiCard('pipeline_id = 2 conv. 2026', conv2026);
+    html += kpiCard('created_at in 2025', created2025);
+    html += kpiCard('created_at in 2026', created2026);
+    html += '</div>';
+    html += '<h3 style="font-size:12px;margin:12px 0 4px;">pipeline_id distribution</h3>';
+    html += '<pre>' + byPipeline.map(([k, n]) => '  ' + JSON.stringify(k) + ' → ' + n).join('\n') + '</pre>';
+    html += '<h3 style="font-size:12px;margin:12px 0 4px;">status distribution</h3>';
+    html += '<pre>' + byStatus.map(([k, n]) => '  ' + JSON.stringify(k) + ' → ' + n).join('\n') + '</pre>';
+    el('deals-summary').innerHTML = html;
+  } catch (err) {
+    el('deals-summary').innerHTML = '<span class="err">ERROR: ' + err.message + '</span>';
+    raw.textContent += 'deals fetch error: ' + err.message + '\n';
+  }
+
+  // First 20 rows full columns
+  try {
+    const sample = await query('activecampaign_deals', { limit: 20 });
+    raw.textContent += 'deals sample → ' + (sample ? sample.length : 0) + ' rows\n';
+    renderRows(sample, 'deals-rows');
+  } catch (err) {
+    el('deals-rows').innerHTML = '<span class="err">ERROR: ' + err.message + '</span>';
+    raw.textContent += 'deals sample error: ' + err.message + '\n';
+  }
+
+  // ---- CLIENTS
+  try {
+    const cAll = await query('activecampaign_clients', { select: ['id', 'contact', 'email', 'created_at'], limit: 5000 });
+    raw.textContent += 'clients (no filter, limit 5000) → ' + (cAll ? cAll.length : 0) + ' rows\n';
+    const total = cAll ? cAll.length : 0;
+    const distinctContacts = new Set((cAll || []).map(r => r.contact).filter(v => v !== null && v !== undefined)).size;
+    const created2025 = (cAll || []).filter(r => (r.created_at || '').slice(0, 4) === '2025').length;
+    const created2026 = (cAll || []).filter(r => (r.created_at || '').slice(0, 4) === '2026').length;
+    let html = '<div class="grid">';
+    html += kpiCard('Rows returned', total + (total === 5000 ? ' (cap hit)' : ''));
+    html += kpiCard('Distinct contact IDs', distinctContacts);
+    html += kpiCard('created_at in 2025', created2025);
+    html += kpiCard('created_at in 2026', created2026);
+    html += '</div>';
+    el('clients-summary').innerHTML = html;
+  } catch (err) {
+    el('clients-summary').innerHTML = '<span class="err">ERROR: ' + err.message + '</span>';
+    raw.textContent += 'clients fetch error: ' + err.message + '\n';
+  }
+
+  try {
+    const sample = await query('activecampaign_clients', { limit: 20 });
+    raw.textContent += 'clients sample → ' + (sample ? sample.length : 0) + ' rows\n';
+    renderRows(sample, 'clients-rows');
+  } catch (err) {
+    el('clients-rows').innerHTML = '<span class="err">ERROR: ' + err.message + '</span>';
+    raw.textContent += 'clients sample error: ' + err.message + '\n';
+  }
+
+  el('status').textContent = 'Done.';
+  el('status').className = 'ok';
+}
+
+document.getElementById('run').addEventListener('click', run);
+run();
+</script>
+</body>
+</html>

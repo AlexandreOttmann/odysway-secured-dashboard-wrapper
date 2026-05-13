@@ -64,8 +64,9 @@ async function handleMessage(event: MessageEvent) {
   if (event.origin !== 'null') return
   if (event.data?.type !== 'query') return
 
-  const { view, params, requestId } = event.data as {
+  const { view, body, params, requestId } = event.data as {
     view: string
+    body?: Record<string, unknown>
     params?: Record<string, unknown>
     requestId: string
   }
@@ -73,7 +74,7 @@ async function handleMessage(event: MessageEvent) {
   try {
     const data = await $fetch(`/api/query/${view}`, {
       method: 'POST',
-      body: { params: params ?? {} },
+      body: body && Object.keys(body).length > 0 ? body : { params: params ?? {} },
     })
     // targetOrigin '*' is safe: we're sending to our own sandboxed iframe;
     // the iframe cannot exfiltrate this data outside its sandbox.

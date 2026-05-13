@@ -28,6 +28,13 @@
     "live": true
   },
   {
+    "slug": "debug-ac",
+    "title": "Debug — ActiveCampaign tables",
+    "description": "Diagnostic: row counts, distinct values, sample rows from deals + clients",
+    "file": "debug-ac.html",
+    "live": true
+  },
+  {
     "slug": "test",
     "title": "Test Table",
     "description": "Live view of the test table — id and created_at",

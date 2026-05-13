@@ -3,15 +3,40 @@ import { ALLOWED_VIEWS } from '../../utils/allowed-views'
 import { useSupabaseClient } from '../../utils/supabase'
 import { writeAuditLog } from '../../utils/audit'
 
-// Only plain scalar values allowed as filter params — no nested objects or arrays
-const paramsSchema = z
-  .record(z.union([z.string(), z.number(), z.boolean()]))
-  .optional()
-  .default({})
+const scalar = z.union([z.string(), z.number(), z.boolean()])
 
-const bodySchema = z.object({ params: paramsSchema })
+const operatorsSchema = z
+  .object({
+    eq: scalar.optional(),
+    in: z.array(scalar).max(500).optional(),
+    gte: scalar.optional(),
+    gt: scalar.optional(),
+    lte: scalar.optional(),
+    lt: scalar.optional(),
+    is: z.union([z.null(), z.literal(true), z.literal(false)]).optional(),
+  })
+  .strict()
 
-// Per-user token bucket: 60 requests / 60s. In-memory; fine for single-instance.
+// Legacy shape: { params: { col: scalar } } — kept working for existing dashboards.
+const legacyParamsSchema = z.record(scalar).optional()
+
+const bodySchema = z
+  .object({
+    select: z.array(z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/)).max(50).optional(),
+    filters: z.record(operatorsSchema).optional(),
+    order: z
+      .object({
+        column: z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/),
+        ascending: z.boolean().optional(),
+      })
+      .optional(),
+    limit: z.number().int().positive().max(20_000).optional(),
+    params: legacyParamsSchema,
+  })
+  .strict()
+
+const MAX_ROWS = 20_000
+
 const RATE_LIMIT = 60
 const RATE_WINDOW_MS = 60_000
 const buckets = new Map<string, { count: number; resetAt: number }>()
@@ -29,7 +54,6 @@ function checkRateLimit(key: string): boolean {
 }
 
 export default defineEventHandler(async (event) => {
-  // CSRF: reject cross-origin POSTs even with a valid session cookie
   const origin = getRequestHeader(event, 'origin')
   if (origin) {
     const requestHost = getRequestHost(event)
@@ -42,7 +66,6 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Session is already verified by server middleware, but we read it here for audit logging
   const session = await getUserSession(event)
   const userEmail = session?.user?.email as string
 
@@ -57,22 +80,42 @@ export default defineEventHandler(async (event) => {
   }
 
   const rawBody = await readBody(event)
-  const parsed = bodySchema.safeParse(rawBody)
+  const parsed = bodySchema.safeParse(rawBody ?? {})
   if (!parsed.success) {
     throw createError({ statusCode: 400, message: 'Invalid request body' })
   }
 
-  const params = parsed.data.params ?? {}
+  const { select, filters, order, limit, params } = parsed.data
 
   const supabase = useSupabaseClient()
-  let query = supabase.from(viewName).select('*')
+  const columns = select && select.length > 0 ? select.join(',') : '*'
+  let query = supabase.from(viewName).select(columns)
 
-  // Apply equality filters from validated params — never raw SQL
-  for (const [key, value] of Object.entries(params)) {
-    query = query.eq(key, value as string)
+  // Legacy: { params: { col: val } } → eq filters
+  if (params) {
+    for (const [col, value] of Object.entries(params)) {
+      query = query.eq(col, value as never)
+    }
   }
 
-  const { data, error } = await query.limit(10_000)
+  if (filters) {
+    for (const [col, ops] of Object.entries(filters)) {
+      if (ops.eq !== undefined) query = query.eq(col, ops.eq as never)
+      if (ops.in !== undefined) query = query.in(col, ops.in as never[])
+      if (ops.gte !== undefined) query = query.gte(col, ops.gte as never)
+      if (ops.gt !== undefined) query = query.gt(col, ops.gt as never)
+      if (ops.lte !== undefined) query = query.lte(col, ops.lte as never)
+      if (ops.lt !== undefined) query = query.lt(col, ops.lt as never)
+      if (ops.is !== undefined) query = query.is(col, ops.is as never)
+    }
+  }
+
+  if (order) {
+    query = query.order(order.column, { ascending: order.ascending ?? true })
+  }
+
+  const effectiveLimit = Math.min(limit ?? MAX_ROWS, MAX_ROWS)
+  const { data, error } = await query.limit(effectiveLimit)
 
   if (error) {
     console.error('[query] Supabase error:', { viewName, error })
@@ -82,7 +125,7 @@ export default defineEventHandler(async (event) => {
   await writeAuditLog({
     userEmail,
     viewName,
-    queryParams: params,
+    queryParams: { select, filters, order, limit, params },
     rowCount: data?.length ?? 0,
   })
 
