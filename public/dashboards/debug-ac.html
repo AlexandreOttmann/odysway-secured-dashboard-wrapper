@@ -98,11 +98,13 @@ async function run() {
 
   // ---- DEALS
   try {
-    // First, do a broad fetch with no filters (cap 5000) so we can compute counts + distinct values client-side
-    const dealsAll = await query('activecampaign_deals', { select: ['id', 'slug', 'status', 'pipeline_id', 'created_at', 'conversion_date', 'total_margin', 'nb_traveler', 'lost_reason'], limit: 5000 });
-    raw.textContent += 'deals (no filter, limit 5000) → ' + (dealsAll ? dealsAll.length : 0) + ' rows\n';
+    const dealsAll = await query('activecampaign_deals', {
+      select: ['id', 'slug', 'status', 'pipeline_id', 'created_at', 'conversion_date', 'total_margin', 'nb_traveler', 'lost_reason'],
+      limit: 20000,
+    });
+    raw.textContent += 'deals → fetched ' + dealsAll.length + ' rows\n';
 
-    const total = dealsAll ? dealsAll.length : 0;
+    const total = dealsAll.length;
     const byPipeline = distinct(dealsAll || [], 'pipeline_id');
     const byStatus = distinct(dealsAll || [], 'status');
     const withSlug = (dealsAll || []).filter(d => d.slug).length;

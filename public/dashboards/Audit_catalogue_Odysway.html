@@ -400,27 +400,23 @@ function buildDataFromDeals(deals) {
   };
 }
 
+const DEALS_QUERY = {
+  select: ['slug', 'title', 'status', 'pipeline_id', 'created_at', 'conversion_date', 'total_margin', 'nb_traveler'],
+  filters: { pipeline_id: { in: [1, 2] } },
+  limit: 20000,
+};
+
 async function loadData() {
-  const deals = await query('activecampaign_deals', {
-    select: ['slug', 'title', 'status', 'pipeline_id', 'created_at', 'conversion_date', 'total_margin', 'nb_traveler'],
-    filters: { pipeline_id: { in: [1, 2] } },
-    limit: 20000,
-  });
-  const raw = deals || [];
+  const raw = await query('activecampaign_deals', DEALS_QUERY);
   const withSlug = raw.filter(d => d.slug).length;
-  const inPipeline2 = raw.filter(d => d.pipeline_id === 2).length;
-  console.log('[audit-catalogue] deals fetched:', raw.length,
-    '| with slug:', withSlug,
-    '| pipeline_id=2:', inPipeline2,
-    '| pipeline distribution:', [...new Map(raw.map(d => [d.pipeline_id, 0]))].map(([k]) =>
-      k + ':' + raw.filter(d => d.pipeline_id === k).length).join(', ')
-  );
+  console.log('[audit-catalogue] deals fetched:', raw.length, '| with slug:', withSlug,
+    '| pipeline_id=2:', raw.filter(d => d.pipeline_id === 2).length);
   if (raw.length === 0) throw new Error('Aucune donnée retournée — vérifier RLS et les filtres pipeline_id IN (1,2)');
-  if (withSlug === 0) throw new Error(raw.length + ' deals chargés mais tous ont slug=null — le champ slug n\'est pas peuplé dans la réplication');
+  if (withSlug === 0) throw new Error(raw.length + ' deals chargés mais slug=null partout — le champ slug n\'est pas peuplé dans la réplication');
   DATA = buildDataFromDeals(raw);
   V = DATA.voyages;
   G = DATA.global_stats;
-  console.log('[audit-catalogue] voyages built:', V.length, '| global 2025 leads:', G['2025'].leads, 'convertis:', G['2025'].convertis, 'marge:', G['2025'].marge);
+  console.log('[audit-catalogue] voyages built:', V.length, '| 2025 leads:', G['2025'].leads, 'convertis:', G['2025'].convertis, 'marge:', G['2025'].marge);
 }
 
 let period = '2025';

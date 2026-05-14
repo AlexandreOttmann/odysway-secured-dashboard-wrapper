@@ -1,43 +1,127 @@
-# Odysway Dashboard Database — Schema Reference
+# Odysway Dashboard — Schema Reference & Dashboard Authoring Guide
 
-Reference for the Odysway analytics dashboard Supabase project. This DB is a near-real-time mirror of the production booking/CRM database, plus client-writable enrichment tables and pre-built analytics views. Use this document to write SQL queries that power visualisations and KPIs.
-
-## Connection & conventions
-
-- **Engine**: PostgreSQL 15+ (Supabase hosted).
-- **Read-only role**: query the `public.*` and `dashboard.*` schemas. Do not write to `public.*` (those rows are overwritten by replication from prod).
-- **Writable role**: insert/update/delete in `client.*` only.
-- **Language of business data**: French. Status values, classifications, lost reasons, etc. are stored in French.
-- **Money**: all monetary columns are in **EUR**, stored as decimal numbers (e.g. `1872.51`), not cents. Already divided by 100 at ingestion time.
-- **Dates**: `created_at`, `updated_at`, `mdate` are `timestamptz` (UTC). `departure_date`, `return_date`, `expiracy_date` are `date` (no time).
-- **NULL semantics**: most columns are nullable; mirror tables preserve NULL when AC has no value.
-
-## Schemas overview
-
-| Schema       | Purpose                                | Writable? |
-|--------------|----------------------------------------|-----------|
-| `public`     | Read-only mirror of prod (CRM + booking) | No        |
-| `client`     | Client-writable enrichment (targets, tags, notes) | Yes |
-| `dashboard`  | Pre-built views & materialized views   | Read-only |
+This document is the single reference for building live dashboard HTML files on the Odysway analytics platform. It covers the database schema, the business logic definitions, and the exact API you must use to query data from a dashboard.
 
 ---
 
-## `public` — Mirror tables (read-only)
+## How dashboards work
 
-### `public.activecampaign_deals`
-A row per CRM deal (booking quote or sale). Source of truth for revenue, margin, conversions, and acquisition channels.
+Dashboards are standalone HTML files dropped into `public/dashboards/`. They run inside a sandboxed `<iframe>` and communicate with the server via `postMessage`. **You never call the database directly** — you call the `query()` helper below, which forwards the request to the server, which queries Supabase.
+
+All aggregation, filtering, and rendering logic lives in the dashboard's own JavaScript.
+
+### The `query()` helper — copy this verbatim into every dashboard
+
+```html
+<script>
+const _pending = {};
+let _nextId = 0;
+function query(view, body) {
+  return new Promise((resolve, reject) => {
+    const id = String(++_nextId);
+    _pending[id] = { resolve, reject };
+    setTimeout(() => { if (_pending[id]) { delete _pending[id]; reject(new Error('timeout')); } }, 30000);
+    window.parent.postMessage({ type: 'query', view, body: body || {}, requestId: id }, '*');
+  });
+}
+window.addEventListener('message', e => {
+  const { type, requestId, data, error } = e.data || {};
+  if (type !== 'query-result' && type !== 'query-error') return;
+  const p = _pending[requestId]; if (!p) return; delete _pending[requestId];
+  if (type === 'query-result') p.resolve(data); else p.reject(new Error(error || 'query failed'));
+});
+</script>
+```
+
+### Request shape
+
+```js
+const rows = await query('table_name', {
+  select:  ['col1', 'col2'],          // optional — omit for all columns
+  filters: {
+    col: { eq: value },               // equal
+    col: { in: [v1, v2] },            // in list
+    col: { gte: value, lte: value },  // range (gte, gt, lte, lt)
+    col: { is: null },                // IS NULL / IS TRUE / IS FALSE
+  },
+  order:  { column: 'col', ascending: false },  // optional
+  limit:  5000,                       // optional, max 20 000
+});
+```
+
+- Returns a flat array of row objects. The server transparently paginates Supabase if needed — just set `limit` to whatever total you need.
+- Only tables listed in the platform's allowlist are queryable. Current allowlist: `activecampaign_deals`, `activecampaign_clients`.
+
+### Registering a new dashboard
+
+Add an entry to `public/dashboards/_manifest.json`:
+
+```json
+{ "slug": "my-dashboard", "title": "My Dashboard", "description": "...", "file": "my-dashboard.html", "live": true }
+```
+
+Then open `/d/my-dashboard` in the app. No server code required.
+
+---
+
+## Conventions
+
+- **Language**: all business data is in French. Status values, pipeline names, lost reasons, etc. are French strings.
+- **Money**: all monetary columns are in **EUR**, stored as decimal numbers (e.g. `1872.51`), never cents.
+- **Dates**: `created_at`, `updated_at`, `mdate` are `timestamptz` (UTC). `departure_date`, `return_date` are `date` (no time component).
+- **NULLs**: mirror tables preserve NULL when the source CRM has no value. Always guard with `|| 0`, `?? ''`, `COALESCE`, etc.
+- **Test deals**: pre-filtered at ingestion — you will not see test contacts in `activecampaign_deals`.
+
+---
+
+## Pipeline logic — the most important concept
+
+`pipeline_id` is the primary segmentation axis for deals. Understand this before writing any dashboard.
+
+| `pipeline_id` | `pipeline_title` | Meaning |
+|---|---|---|
+| `1` | Prospects | Prospects pipeline. A deal here represents a traveler who has expressed interest (quote request, contact form, etc.) but has not yet paid. |
+| `2` | Voyageurs | Converted client pipeline. A deal moves here when the client makes their **first payment**. This is the authoritative signal for a conversion. |
+| `3` | Corbeille | Trash / archived. Exclude from all reports. |
+| `4` | Gestions Départs | Operational departure management. **Not replicated — these deals do not exist in this database.** |
+
+**Key rules for metrics:**
+
+- **Lead** = Sum of deals in `pipeline_id = 1` and `pipeline_id = 2`, this definition might change depending on user input.
+-**Prospect** = client enter their email on the odysway website and get registered as potentiel buyer.
+- **Converti** **Traveler** **Voyageur** (conversion) = `pipeline_id = 2`, attributed by `COALESCE(conversion_date, created_at)`.
+  - `conversion_date` is the timestamp when the deal moved to pipeline 2. Use it for revenue cohorts. Fall back to `created_at` only when `conversion_date` is NULL.
+  - A pipeline-2 deal can have `status = 'Perdu'` — this means the client paid but subsequently cancelled. Include these in conversion counts; exclude them from revenue sums unless you specifically want refund analysis.
+- **Revenue / margin**: filter `pipeline_id = 2` (or equivalently `status = 'Gagné'`) and sum `total_value` / `total_margin`.
+- **Taux de conversion**: `count(pipeline_id = 2) / count(pipeline_id = 1)` for the same voyage and period.
+
+**Standard period definitions** (use these consistently across dashboards):
+
+| Label | Date range |
+|---|---|
+| `2025` | `2025-01-01` ≤ date `< 2026-01-01` |
+| `2026 YTD` | `2026-01-01` ≤ date ≤ today |
+| `Rolling 365` | today − 365 days ≤ date ≤ today |
+| `All` | `2025-01-01` ≤ date ≤ today |
+
+---
+
+## `public.activecampaign_deals`
+
+A row per CRM deal. Source of truth for revenue, margin, conversions, and acquisition channels.
 
 | Column | Type | Description |
 |---|---|---|
-| `id` | bigint | Deal ID (AC). Part of composite PK with `contact`. |
-| `contact` | bigint | Foreign key to `activecampaign_clients.contact`. |
-| `title` | varchar | Deal title (often voyage name + traveler). |
-| `status` | varchar | One of `'Ouvert'`, `'Gagné'`, `'Perdu'`, `'Supprimé'`. |
+| `id` | bigint | Deal ID. Part of composite PK with `contact`. |
+| `contact` | bigint | FK to `activecampaign_clients.contact`. |
+| `title` | varchar | Deal title (usually voyage name + traveler name). |
+| `status` | varchar | `'Ouvert'`, `'Gagné'`, `'Perdu'`, `'Supprimé'`. |
 | `stage` | varchar | Sales stage name (free-form). |
 | `stage_id` | text | AC stage numeric id. |
-| `pipeline_id` | smallint | `1` = main sales pipeline, `3` = trash. Pipeline `4` (Gestions Départs) is excluded from the mirror. |
+| `pipeline_id` | smallint | See pipeline logic above. |
+| `pipeline_title` | varchar | Human-readable pipeline name (e.g. `'Prospects'`, `'Voyageurs'`). Use `pipeline_id` for filtering; use `pipeline_title` for display. |
 | `owner_id` | text | AC owner id (sales rep). |
-| `seller` | varchar | Display name of sales rep (e.g. "Jean Dupont"). |
+| `seller` | varchar | Display name of sales rep (e.g. `'Jean Dupont'`). |
 | `currency` | text | Usually `'eur'`. |
 | `win_probability` | smallint | 0–100. Set by AC. |
 | `total_value` | numeric | Total deal value in EUR. |
@@ -49,7 +133,7 @@ A row per CRM deal (booking quote or sale). Source of truth for revenue, margin,
 | `insurance_price_per_traveler` | numeric | Insurance cost per traveler. |
 | `insurance_commission` | numeric | Commission earned on insurance. |
 | `agent_cost` | numeric | Local agent purchase cost. Subtract from total to get true margin. |
-| `nb_traveler` | numeric | Total travelers. |
+| `nb_traveler` | numeric | Total travelers on the deal. |
 | `nb_adults`, `nb_children`, `nb_teen`, `nb_under_age` | numeric | Demographic breakdown. |
 | `applied_promo_per_traveler` | numeric | Promo applied per traveler. |
 | `children_promo`, `promo_earlybird`, `promo_last_minute` | numeric | Promotion amounts. |
@@ -60,49 +144,42 @@ A row per CRM deal (booking quote or sale). Source of truth for revenue, margin,
 | `rest_to_pay_per_traveler` | numeric | Per-pax outstanding. |
 | `margin_per_traveler` | numeric | Margin per traveler. |
 | `flight_margin` | numeric | Margin on the flight portion. |
-| `total_margin` | numeric | Total deal margin. |
-| `travel_type` | varchar | E.g. `'Voyage de Groupe'`, `'Voyage Individuel'`. |
+| `total_margin` | numeric | Total deal margin in EUR. |
+| `travel_type` | varchar | `'Voyage de Groupe'`, `'Voyage Individuel'`, etc. |
 | `country` | varchar | Destination country (label). |
 | `iso` | varchar | ISO country code (e.g. `'PE'`, `'JP'`). |
-| `zone_chapka` | numeric | Insurance zone id. |
-| `slug` | text | Voyage slug — joins to a logical voyage entity. |
+| `slug` | text | Voyage slug — the logical identifier for a voyage product. Groups all deals for the same trip. |
 | `current_step` | text | Funnel step at last update. |
 | `is_couple` | boolean | Couple booking flag. |
-| `indiv_room` | boolean | Wants single room. |
+| `indiv_room` | boolean | Single room requested. |
 | `is_cap_exploraction` | boolean | Premium insurance product chosen. |
 | `include_flight` | boolean | Flight included in the package. |
 | `flight_ticket_bought` | boolean | Operational: tickets purchased? |
-| `max_children_age` | smallint | Eligibility threshold for child promo. |
 | `insurance_choice` | varchar | Free-form insurance label. |
 | `source` | varchar | Free-form source (legacy). |
-| `acquisition_source` | text | Structured acquisition source (multi-select label). |
+| `acquisition_source` | text | Structured acquisition source. Prefer this over `source`. |
 | `other_acquisition_source` | text | Free-form fallback when `acquisition_source` is "Autre". |
 | `utm` | text | Raw UTM string. |
 | `paiement_method` | varchar | Payment method label. |
-| `lost_reason` | varchar | Set when `status='Perdu'`. |
+| `lost_reason` | varchar | Set when `status = 'Perdu'`. |
 | `departure_date`, `return_date` | timestamp | Travel dates. |
 | `forecasted_closing_date` | timestamp | Sales forecast date. |
-| `conversion_date` | timestamp | When the deal moved to "Gagné". Use this for revenue cohorts. |
-| `next_date` | timestamptz | Next scheduled task on the deal. |
-| `next_task_id` | text | AC task id. |
-| `link_bms` | text | Link to internal Booking Management System. |
+| `conversion_date` | timestamp | When the deal moved to pipeline 2 ("Gagné"). **Use for revenue cohorts.** |
 | `created_at` | timestamptz | Deal creation time. |
-| `mdate` | timestamptz | Last modification time (AC source). |
-| `updated_at` | timestamptz | Mirror-side timestamp. |
+| `mdate` | timestamptz | Last modification time (source CRM). |
+| `updated_at` | timestamptz | Mirror-side last-updated timestamp. |
 
-**Notes for analytics**:
-- For revenue, filter by `status = 'Gagné'`.
-- For acquisition reporting, prefer `acquisition_source` over `source` (the latter is legacy free-form). Fallback chain: `COALESCE(acquisition_source, source, 'unknown')`.
-- Test deals are filtered out at ingestion (`ottmann.alex@gmail.com`, `test@gmail.com`).
+---
 
-### `public.activecampaign_clients`
-A row per CRM contact (customer).
+## `public.activecampaign_clients`
+
+A row per CRM contact (customer). Contains PII — use with care.
 
 | Column | Type | Description |
 |---|---|---|
 | `id` | bigint | Internal id. Part of composite PK with `email`. |
-| `contact` | bigint | AC contact id. **Use this column to join with `activecampaign_deals.contact`.** Has UNIQUE constraint. |
-| `email` | varchar | Email address. Always present. |
+| `contact` | bigint | AC contact id. **Join to `activecampaign_deals.contact` on this column.** Has UNIQUE constraint. |
+| `email` | varchar | Email address. |
 | `firstname`, `lastname` | varchar | Names. |
 | `phone` | text | Phone number. |
 | `birthdate` | timestamp | Date of birth. |
@@ -112,7 +189,10 @@ A row per CRM contact (customer).
 | `optin_newsletter` | boolean | Newsletter subscription flag. |
 | `created_at`, `mdate`, `updated_at` | timestamptz | Timestamps. |
 
-### `public.travel_dates`
+---
+
+## `public.travel_dates`
+
 Departure slots for each voyage. One row per (voyage, departure date).
 
 | Column | Type | Description |
@@ -120,22 +200,21 @@ Departure slots for each voyage. One row per (voyage, departure date).
 | `id` | uuid | PK. |
 | `travel_slug` | varchar | Voyage slug — joins to `activecampaign_deals.slug` logically. |
 | `departure_date`, `return_date` | date | Travel dates. |
-| `min_travelers`, `max_travelers` | int | Operational capacity bounds. |
-| `booked_seat` | int | Actual booked seats (sum across `booked_dates`). |
+| `min_travelers`, `max_travelers` | int | Capacity bounds. |
+| `booked_seat` | int | Actual booked seats. |
 | `starting_price`, `flight_price` | numeric | Display prices. |
 | `include_flight`, `early_bird`, `last_minute`, `is_custom_travel`, `is_indiv_travel` | boolean | Flags. |
 | `published` | boolean | Visible on the website. |
-| `status` | text | Operational status (e.g. `'open'`, `'guaranteed'`, `'cancelled'`). |
+| `status` | text | `'open'`, `'guaranteed'`, `'cancelled'`, etc. |
 | `closing_days` | bigint | Days before departure when booking closes. |
-| `displayed_*` columns | mixed | Override values shown to users when `custom_display = true`. For reporting, use the non-displayed versions. |
-| `departure_id` | text | Links to the AC departure deal (in pipeline 4, not in this DB). |
-| `bms_reference`, `travel_type_prefix` | text | Operational metadata. |
-| `co_filling` | int | Co-filling seats. |
-| `deleted`, `is_test` | boolean | Filter these out in reports. |
+| `deleted`, `is_test` | boolean | **Always filter these out**: `deleted = false AND is_test = false`. |
 | `created_at`, `updated_at` | timestamptz | Timestamps. |
 
-### `public.booked_dates`
-One row per booking (deal ↔ travel_date).
+---
+
+## `public.booked_dates`
+
+One row per booking (deal ↔ departure).
 
 | Column | Type | Description |
 |---|---|---|
@@ -146,256 +225,63 @@ One row per booking (deal ↔ travel_date).
 | `payment_type` | text | `'deposit'`, `'full'`, `'balance'`, `'custom'`. |
 | `transaction_id` | text | Stripe or Alma transaction id. |
 | `is_option` | boolean | Reservation option (not yet paid). |
-| `expiracy_date` | date | Option expiry. |
-| `deleted`, `is_test` | boolean | Filter out in reports. |
+| `expiracy_date` | date | Option expiry date. |
+| `deleted`, `is_test` | boolean | **Always filter these out.** |
 | `created_at` | timestamptz | Booking creation time. |
 
 ---
 
-## `client` — Writable enrichment
-
-These tables are managed by the dashboard user / client AI agent. They never get overwritten by replication. Use them to layer custom business logic on top of the mirrored data.
-
-### `client.sales_targets`
-Monthly/quarterly/yearly targets per metric.
-
-| Column | Type | Description |
-|---|---|---|
-| `id` | uuid | PK. |
-| `period` | date | First day of the period. |
-| `granularity` | text | `'month'`, `'quarter'`, `'year'`. |
-| `metric` | text | E.g. `'revenue'`, `'deals_won'`, `'avg_basket'`. Free-form. |
-| `target` | numeric | Target value. |
-| `owner` | text | Optional: seller email or team. |
-| `notes` | text | |
-
-UNIQUE on `(period, granularity, metric, owner)`.
-
-### `client.custom_tags`
-Free-form tags the client attaches to a deal.
-
-| Column | Type | Description |
-|---|---|---|
-| `id` | uuid | PK. |
-| `deal_id` | bigint | Joins to `public.activecampaign_deals.id`. |
-| `tag` | text | Label. |
-| `color` | text | Hex color for UI. |
-| `created_by`, `created_at` | text/timestamptz | |
-
-UNIQUE on `(deal_id, tag)`. Indexed on `deal_id`, `tag`.
-
-### `client.deal_classifications`
-Manual single-classification per deal (VIP, repeat, complaint, etc.).
-
-| Column | Type | Description |
-|---|---|---|
-| `deal_id` | bigint | PK. |
-| `classification` | text | E.g. `'VIP'`, `'Repeat customer'`. |
-| `priority` | smallint | Sort/severity. |
-| `set_by`, `set_at` | text/timestamptz | |
-
-### `client.dashboard_comments`
-Notes on dashboard entities.
-
-| Column | Type | Description |
-|---|---|---|
-| `id` | uuid | PK. |
-| `entity_type` | text | One of `'deal'`, `'voyage'`, `'travel_date'`, `'client'`. |
-| `entity_id` | text | The entity id (cast to text). |
-| `author` | text | |
-| `content` | text | |
-| `created_at` | timestamptz | |
-
-### `client.voyage_costs`
-Operational cost overrides for margin calculation when AC data is incomplete.
-
-| Column | Type | Description |
-|---|---|---|
-| `travel_slug` | text | PK — joins to `activecampaign_deals.slug` / `travel_dates.travel_slug`. |
-| `base_cost`, `flight_cost`, `other_cost` | numeric | Cost components in EUR. |
-| `cost_currency` | text | Default `'EUR'`. |
-| `notes` | text | |
-| `updated_at` | timestamptz | |
-
----
-
-## `dashboard` — Pre-built views
-
-Use these first; only query `public.*` directly for fields not yet exposed.
-
-### `dashboard.deals_full` (view)
-Deal + client + classification join. One row per deal, with the most relevant analytics columns. Use this for any deal-level reporting.
-
-Joins: `activecampaign_deals` ⟕ `activecampaign_clients` ⟕ `client.deal_classifications`.
-
-Notable columns (in addition to those from `activecampaign_deals`):
-- `email`, `firstname`, `lastname`, `phone`, `client_iso`, `client_tags`
-- `voyage_slug` (alias of `slug`)
-- `client_classification`, `classification_priority`
-
-### `dashboard.bookings_full` (view)
-Booking-centric: one row per `booked_dates` joined to travel_date, deal, and client. Filters out `deleted` and `is_test`.
-
-Use for occupancy reports, payment status, departure cohorts.
-
-### `dashboard.monthly_revenue_by_source` (matview)
-Monthly aggregation of won deals by acquisition channel.
-
-| Column | Type | Description |
-|---|---|---|
-| `month` | date | First day of the month. |
-| `channel` | text | `COALESCE(acquisition_source, source, 'unknown')`. |
-| `deals_won` | bigint | Count. |
-| `gross_revenue` | numeric | Sum of `total_value`. |
-| `total_margin` | numeric | Sum of `total_margin`. |
-| `total_travelers` | numeric | Sum of `nb_traveler`. |
-
-Refreshed every 15 minutes via `pg_cron`.
-
-### `dashboard.voyage_performance` (matview)
-Per-voyage funnel.
-
-| Column | Description |
-|---|---|
-| `voyage_slug` | Voyage slug. |
-| `deals_won`, `deals_lost`, `deals_open` | Counts by status. |
-| `won_revenue`, `won_margin` | Sums of value/margin for won deals. |
-| `travelers_won` | Sum of `nb_traveler` for won deals. |
-| `avg_price_per_traveler` | Average price for won deals. |
-
-### `dashboard.upcoming_departures` (matview)
-Departures from today onward, with occupancy.
-
-| Column | Description |
-|---|---|
-| `travel_date_id` | Travel date PK. |
-| `travel_slug`, `departure_date`, `return_date` | |
-| `min_travelers`, `max_travelers`, `booked_seat` | |
-| `occupancy_pct` | `booked_seat / max_travelers * 100` (rounded to 1 decimal). |
-| `starting_price`, `status` | From `travel_dates`. |
-| `active_bookings` | Count of non-deleted bookings. |
-| `confirmed_revenue` | Sum of `total_value` for won deals on this departure. |
-
----
-
-## Logical relationships (no FK enforced on mirror)
+## Logical relationships
 
 ```
-activecampaign_clients (contact PK)
-   └──< activecampaign_deals (contact)
+activecampaign_clients (contact)
+   └──< activecampaign_deals (contact)       ← pipeline 1 = prospect, pipeline 2 = converted
             └──< booked_dates (deal_id)
                        └── travel_dates (travel_date_id)
 
-activecampaign_deals.slug  ─── logically links to ──→  travel_dates.travel_slug
+activecampaign_deals.slug  ──→  travel_dates.travel_slug
 ```
 
-Foreign keys are NOT enforced on the mirror (replication-friendly). Join on the column names above.
+No foreign keys are enforced on the mirror (replication-safe). Join on the column names above.
 
 ---
 
-## Common query recipes
+## Dashboard authoring — worked example
 
-### Monthly revenue (won deals) for current year
-```sql
-SELECT date_trunc('month', conversion_date)::date AS month,
-       sum(total_value) AS revenue,
-       count(*)         AS deals_won
-FROM public.activecampaign_deals
-WHERE status = 'Gagné'
-  AND conversion_date >= date_trunc('year', current_date)
-GROUP BY 1
-ORDER BY 1;
-```
+```js
+// Fetch all deals for the prospect/conversions analysis (pipeline 1 + 2)
+const deals = await query('activecampaign_deals', {
+  select: ['slug', 'pipeline_id', 'pipeline_title', 'status',
+           'created_at', 'conversion_date', 'total_margin', 'nb_traveler'],
+  filters: { pipeline_id: { in: [1, 2] } },
+  limit: 20000,
+});
 
-### Revenue vs. target (uses `client.sales_targets`)
-```sql
-SELECT t.period,
-       t.target,
-       coalesce(r.revenue, 0) AS actual,
-       round(coalesce(r.revenue, 0) / t.target * 100, 1) AS pct_attained
-FROM client.sales_targets t
-LEFT JOIN (
-    SELECT date_trunc('month', conversion_date)::date AS month,
-           sum(total_value) AS revenue
-    FROM public.activecampaign_deals
-    WHERE status = 'Gagné'
-    GROUP BY 1
-) r ON r.month = t.period
-WHERE t.granularity = 'month' AND t.metric = 'revenue'
-ORDER BY t.period;
-```
+const today = new Date();
+const y2025 = { s: new Date('2025-01-01'), e: new Date('2026-01-01') };
+const y2026 = { s: new Date('2026-01-01'), e: new Date(today.getTime() + 86400000) };
 
-### Top 10 voyages by margin (last 12 months)
-```sql
-SELECT voyage_slug, won_margin, deals_won, travelers_won
-FROM dashboard.voyage_performance
-WHERE voyage_slug IN (
-    SELECT slug FROM public.activecampaign_deals
-    WHERE status = 'Gagné'
-      AND conversion_date >= current_date - interval '12 months'
-)
-ORDER BY won_margin DESC NULLS LAST
-LIMIT 10;
-```
+function inRange(dateStr, s, e) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  return d >= s && d < e;
+}
 
-### Upcoming departures at risk (occupancy < min_travelers within 30 days)
-```sql
-SELECT travel_slug, departure_date, booked_seat, min_travelers,
-       (min_travelers - booked_seat) AS missing_pax
-FROM dashboard.upcoming_departures
-WHERE departure_date <= current_date + interval '30 days'
-  AND booked_seat < min_travelers
-ORDER BY departure_date;
-```
+// Prospect: pipeline 1, attributed by created_at
+const prospects2025 = deals.filter(d => d.pipeline_id === 1 && inRange(d.created_at, y2025.s, y2025.e));
 
-### UTM channel attribution
-```sql
-SELECT month, channel, deals_won, gross_revenue, total_margin
-FROM dashboard.monthly_revenue_by_source
-WHERE month >= date_trunc('year', current_date)
-ORDER BY month DESC, gross_revenue DESC;
-```
-
-### Customer LTV (top spenders)
-```sql
-SELECT c.contact, c.email, c.firstname, c.lastname,
-       count(d.id)                            AS deals,
-       sum(d.total_value) FILTER (WHERE d.status = 'Gagné') AS lifetime_revenue
-FROM public.activecampaign_clients c
-JOIN public.activecampaign_deals  d ON d.contact = c.contact
-GROUP BY c.contact, c.email, c.firstname, c.lastname
-HAVING sum(d.total_value) FILTER (WHERE d.status = 'Gagné') > 0
-ORDER BY lifetime_revenue DESC
-LIMIT 50;
-```
-
-### Conversion funnel
-```sql
-SELECT status, count(*) AS deals, sum(total_value) AS total_value
-FROM public.activecampaign_deals
-WHERE created_at >= current_date - interval '90 days'
-GROUP BY status
-ORDER BY array_position(ARRAY['Ouvert','Gagné','Perdu','Supprimé'], status);
-```
-
-### Tagged deals (uses `client.custom_tags`)
-```sql
-SELECT t.tag, count(*) AS tagged_deals,
-       sum(d.total_value) AS tagged_revenue
-FROM client.custom_tags t
-JOIN public.activecampaign_deals d ON d.id = t.deal_id
-WHERE d.status = 'Gagné'
-GROUP BY t.tag
-ORDER BY tagged_revenue DESC;
+// Convertis: pipeline 2, attributed by COALESCE(conversion_date, created_at)
+const conv2025  = deals.filter(d => d.pipeline_id === 2 && inRange(d.conversion_date || d.created_at, y2025.s, y2025.e));
+const marge2025 = conv2025.reduce((sum, d) => sum + (d.total_margin || 0), 0);
 ```
 
 ---
 
-## Tips for the AI agent
+## Tips
 
-- **Filter test/deleted data** when querying mirror tables: `WHERE deleted = false AND is_test = false` on `travel_dates` and `booked_dates`. Activecampaign tables have no such flag (test deals are pre-filtered at ingestion).
-- **Pipeline 4** (Gestions Départs) deals are not in this DB at all.
-- **Refresh staleness**: matviews refresh every 15 min. If sub-15-min freshness is needed, query the underlying tables directly.
-- **Status values are French** (`'Gagné'` not `'Won'`). Always compare to the French literal.
-- **Don't write to `public.*`** — changes will be overwritten by the next webhook event from prod.
-- **Use `dashboard.deals_full` / `bookings_full`** for joins that span deals + clients + classifications; they're maintained centrally.
+- **Status values are French**: `'Gagné'`, `'Perdu'`, `'Ouvert'`, `'Supprimé'`. Never use English equivalents.
+- **Acquisition source**: prefer `acquisition_source` over `source` (legacy free-form). Fallback: `acquisition_source || source || 'unknown'`.
+- **Margins vs revenue**: `total_margin` = net margin after agent costs. `total_value` = gross revenue. Use the appropriate one for your KPI.
+- **Filter test/deleted rows** on `travel_dates` and `booked_dates`: `deleted = false AND is_test = false`. Not needed on `activecampaign_deals` (pre-filtered at ingestion).
+- **Pipeline 4** (Gestions Départs) does not exist in this database.
+- **NULL guards**: always treat numeric columns as potentially NULL — use `|| 0` in JS or `COALESCE` in SQL.
